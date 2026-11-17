@@ -107,6 +107,19 @@ pruefe('Φ_RH wird addiert', C.rechneRaum(P6.raeume[0], P6).phiHL, R.phiHL + 100
 const P7 = testprojekt(); P7.optionen.erdreich = 'norm';
 const R7 = C.rechneRaum(P7.raeume[0], P7);
 pruefe('Variante Erdreich Norm verlangt U_equiv', R7.fehlt.some(x => x.text.includes('U_equiv')), true);
+// Grundfläche aus Teilflächen
+const P8 = testprojekt(), r8 = P8.raeume[0];
+const tf = (L, B, minus = false) => Object.assign(C.leereTeilflaeche(), { L, B, minus });
+r8.amodus = 'TF'; r8.teilflaechen = [tf('20', '19,875'), tf('18,475', '19,875')];
+const R8 = C.rechneRaum(r8, P8);
+pruefe('Teilflächen 20·19,875 + 18,475·19,875 = A_G', R8.w.A, 764.6906250000001, 1e-12);
+pruefe('Teilflächen: gleiches Φ_HL wie L · B', R8.phiHL, R.phiHL, 1e-12);
+r8.teilflaechen = [tf('5,2', '4,1'), tf('2', '1,5'), tf('1', '0,5', true)];
+pruefe('L-Raum mit Aussparung: 5,2·4,1 + 2·1,5 − 1·0,5 = 23,82 m²', C.rechneRaum(r8, P8).w.A, 23.82, 1e-12);
+r8.teilflaechen = [tf('5,2', '')];
+pruefe('Teilfläche ohne Breite → Fehlliste', C.rechneRaum(r8, P8).fehlt.some(x => x.text === 'Teilfläche 1: Breite: Eingabe fehlt'), true);
+r8.teilflaechen = [];
+pruefe('keine Teilfläche → Fehlliste', C.rechneRaum(r8, P8).fehlt.some(x => x.text === 'keine Teilfläche eingetragen'), true);
 pruefe('Zahl mit Komma', C.num('1,45'), 1.45);
 pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
 

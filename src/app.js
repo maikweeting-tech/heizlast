@@ -238,10 +238,12 @@ function rRaum() {
   return `<div class="karte"><h2>${S.entwurfVon ? 'Raum bearbeiten' : 'Neuen Raum eingeben'}</h2>
     <div class="reihe vier">${feld('Nr.', e + '.nr', 'raum.nr', '', 't')}${feld('Raumname', e + '.name', 'raum.name', '', 't')}${feld('Geschoss', e + '.geschoss', '', '', 't')}
       <label class="feld">Raumart → θ<sub>int</sub>${sel(e + '.raumartId', 'raum.raumartId', raOpts)}</label></div>
-    <div class="radio"><label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="LB" ${r.amodus !== 'A' ? 'checked' : ''}> Fläche aus Länge × Breite</label>
+    <div class="radio"><label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="LB" ${r.amodus !== 'A' && r.amodus !== 'TF' ? 'checked' : ''}> Fläche aus Länge × Breite</label>
+      <label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="TF" ${r.amodus === 'TF' ? 'checked' : ''}> aus mehreren Teilflächen</label>
       <label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="A" ${r.amodus === 'A' ? 'checked' : ''}> Fläche A direkt</label></div>
+    ${r.amodus === 'TF' ? teilflaechenHtml(r) : ''}
     <div class="reihe vier">
-      ${r.amodus === 'A' ? feld('Fläche A', e + '.A', 'raum.A', 'm²', 'z') : feld('Länge L', e + '.L', 'raum.L', 'm', 'z') + feld('Breite B', e + '.B', 'raum.B', 'm', 'z')}
+      ${r.amodus === 'A' ? feld('Fläche A', e + '.A', 'raum.A', 'm²', 'z') : r.amodus === 'TF' ? '' : feld('Länge L', e + '.L', 'raum.L', 'm', 'z') + feld('Breite B', e + '.B', 'raum.B', 'm', 'z')}
       ${feld('lichte Höhe h<sub>i</sub>', e + '.hi', 'raum.hi', 'm', 'z')}
       <div><span class="hinweis klein">A in m² · V<sub>i</sub> = A · h<sub>i</sub> in m³</span><span class="ausgabe" data-o="AV">–</span></div>
     </div>
@@ -270,6 +272,21 @@ function rRaum() {
     <div class="knoepfe" style="margin-top:10px"><button class="btn btn-primaer" data-a="raum-ok">Raum übernehmen</button>
     <button class="btn" data-a="raum-leeren">${S.entwurfVon ? 'Bearbeitung abbrechen' : 'Formular leeren'}</button></div>
   </div>`;
+}
+function teilflaechenHtml(r) {
+  const tf = r.teilflaechen || (r.teilflaechen = []);
+  const z = tf.map((t, i) => {
+    const b = `entwurf.teilflaechen.#${t.id}`, pf = `raum.tf.${t.id}`;
+    return `<tr><td>${i + 1}</td><td>${inp(b + '.bez', '', 'n', 'placeholder="z. B. Hauptteil"')}</td>
+      <td>${inp(b + '.L', pf + '.L')}</td><td>${inp(b + '.B', pf + '.B')}</td>
+      <td><label class="haken"><input type="checkbox" data-b="${b}.minus" ${t.minus ? 'checked' : ''}> abziehen</label></td>
+      <td class="zahl" data-o="tf:${t.id}">–</td>
+      <td><button class="btn-icon" data-a="tf-weg" data-id="${t.id}" title="Teilfläche entfernen">×</button></td></tr>`;
+  }).join('');
+  return `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bezeichnung</th><th class="zahl">Länge L<br>m</th><th class="zahl">Breite B<br>m</th><th>Aussparung</th><th class="zahl">A<sub>i</sub><br>m²</th><th></th></tr>
+    ${z || '<tr><td colspan="7" class="hinweis" data-pf="raum.teilflaechen">Noch keine Teilfläche.</td></tr>'}</table></div>
+    <button class="btn btn-klein" style="margin:8px 0 12px" data-a="tf-neu">+ Teilfläche</button>
+    <p class="hinweis klein">Grundfläche A = Σ (± L<sub>i</sub> · B<sub>i</sub>). „abziehen“ für Aussparungen, z. B. Treppenloch oder Schacht.</p>`;
 }
 function raumErgebnisHtml(R) {
   const hw = R.hinweise.map(h => `<div class="hinweisbox">${idx(esc(h))}</div>`).join('');
@@ -326,6 +343,7 @@ function fwZeilen(R) {
   gr('Grundwerte');
   z('Δθ = θ_int − θ_e', `= ${fmtV(w.tint, 1)} − ${fmtV(w.te, 1)}`, `= ${W(w.dth, 1)} K`);
   if (ok(w.L)) z('A = L · B', `= ${W(w.L, 3)} · ${W(w.B, 3)}`, `= ${W(w.A, 2)} m²`);
+  if (w.teile) z(`A = Σ (± L_i · B_i)  (${w.teile.length} Teilflächen)`, '= ' + w.teile.map((t, i) => `${i ? (t.minus ? '− ' : '+ ') : (t.minus ? '− ' : '')}${W(t.L, 3)} · ${W(t.B, 3)}`).join(' '), `= ${W(w.A, 2)} m²`);
   z('V_i = A · h_i', `= ${W(w.A, 2)} · ${W(w.hi, 2)}`, `= ${W(w.V, 2)} m³`);
   gr('Transmission');
   R.zeilen.forEach((t, i) => {
@@ -463,6 +481,7 @@ function aktualisiereRaum() {
   const R = RE, w = R.w, o = k => document.querySelector(`[data-o="${k}"]`);
   const set = (k, h) => { const el = o(k); if (el) el.innerHTML = h; };
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
+  (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
   R.zeilen.forEach(z => { set('an:' + z.flId, W(z.bezug, 2)); set('phi:' + z.flId, `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
   set('lu', `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}`);
   set('raumerg', raumErgebnisHtml(R));
@@ -481,7 +500,7 @@ function nachEingabe(el) {
 const tief = o => JSON.parse(JSON.stringify(o));
 function entwurfBenutzt() {
   const r = S.entwurf, l = r.lueftung;
-  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || r.hi || r.L || r.B || r.A || r.phiRH ||
+  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH ||
     l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId);
 }
 const AKTION = {
@@ -499,6 +518,8 @@ const AKTION = {
   },
   'nw-weg'(d) { if (!confirm('Zeile löschen? Räume, die sie verwenden, werden unvollständig.')) return false; S.normwerte[d.art] = S.normwerte[d.art].filter(x => x.id !== d.id); },
   'fl-neu'() { S.entwurf.flaechen.push(leereFlaeche()); },
+  'tf-neu'() { (S.entwurf.teilflaechen || (S.entwurf.teilflaechen = [])).push(leereTeilflaeche()); },
+  'tf-weg'(d) { S.entwurf.teilflaechen = S.entwurf.teilflaechen.filter(t => t.id !== d.id); },
   'fl-weg'(d) { S.entwurf.flaechen = S.entwurf.flaechen.filter(f => f.id !== d.id); },
   'raum-ok'() {
     const r = tief(S.entwurf), i = S.raeume.findIndex(x => x.id === S.entwurfVon);
@@ -515,7 +536,7 @@ const AKTION = {
   },
   'raum-dup'(d) {
     const i = S.raeume.findIndex(r => r.id === d.id), r = tief(S.raeume[i]);
-    r.id = neueId('r'); r.nr = (r.nr || '') + ' (Kopie)'; r.flaechen.forEach(f => { f.id = neueId('f'); });
+    r.id = neueId('r'); r.nr = (r.nr || '') + ' (Kopie)'; r.flaechen.forEach(f => { f.id = neueId('f'); }); (r.teilflaechen || []).forEach(t => { t.id = neueId('tf'); });
     S.raeume.splice(i + 1, 0, r); toast('Raum dupliziert.');
   },
   'raum-weg'(d) { const r = S.raeume.find(x => x.id === d.id); if (!confirm(`Raum ${r.nr} „${r.name}“ löschen?`)) return false; S.raeume = S.raeume.filter(x => x.id !== d.id); if (S.entwurfVon === d.id) S.entwurfVon = ''; },
@@ -630,7 +651,9 @@ function exportXlsx() {
     const eta = r.lueftung.suModus === 'eta';
     const ra = r.raumartId, vmin = S.optionen.vmin === 'norm';
     rr.push([r.nr, r.name, r.geschoss, w.raumart,
-      r.amodus === 'A' ? '' : n(r.L), r.amodus === 'A' ? '' : n(r.B), r.amodus === 'A' ? n(r.A) : { f: `E${z}*F${z}`, v: w.A }, n(r.hi), { f: `G${z}*H${z}`, v: w.V },
+      r.amodus === 'LB' ? n(r.L) : '', r.amodus === 'LB' ? n(r.B) : '',
+      r.amodus === 'A' ? n(r.A) : r.amodus === 'TF' ? (w.teile && w.teile.length && w.teile.every(t => ok(t.A)) ? { f: w.teile.map((t, i) => `${t.minus ? '-' : (i ? '+' : '')}${t.L}*${t.B}`).join(''), v: w.A } : '') : { f: `E${z}*F${z}`, v: w.A },
+      n(r.hi), { f: `G${z}*H${z}`, v: w.V },
       v ? { f: NR['tint' + ra], v: w.tint } : '', v ? { f: `J${z}-${NR.te}`, v: w.dth } : '',
       v ? { f: h1 >= h0 ? `SUM(Hüllflächen!L${h0}:L${h1})` : '0', v: R.phiT } : '',
       n(r.lueftung.Vsu), eta ? n(r.lueftung.eta) : '',

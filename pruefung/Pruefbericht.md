@@ -1,6 +1,6 @@
 # Prüfbericht Heizlast-App
 
-Stand: 17.11.2026 · Bearbeiter: Maik Weeting, Klasse FH 21 · geprüft mit `node tests.js` (60 Prüfungen), im Browser (Vorschau) und in Excel (COM-Neuberechnung)
+Stand: 17.11.2026 · Bearbeiter: Maik Weeting, Klasse FH 21 · geprüft mit `node tests.js` (66 Prüfungen), im Browser (Vorschau) und in Excel (COM-Neuberechnung)
 
 ## Grundlagen
 
@@ -30,7 +30,7 @@ Die Eingangswerte stammen aus dem Blatt „Eingaben“. Ich habe sie über die O
 
 - Normwerte (Quelle „Excel-Mappe Kita Wesel, Blatt Eingaben (ungeprüft)“, nur für diesen Abgleich als geprüft markiert): θ_e = −8,5 °C; θ_m,e = 10,5 °C; θ_int = 20 °C; f_g1 = 1,45; G_w = 1; e = 0,02; ε = 1; ρ·c_p = 0,34 Wh/(m³·K)
 - Bauteile, jeweils mit ΔU_WB = 0,05 W/(m²·K): Außenwand U = 0,20; Fenster 0,90; Bodenplatte 0,25; Wand zur Gastro 0,20
-- Raum: L = 38,475 m; B = 19,875 m; h_i = 3,6 m
+- Raum: L = 38,475 m; B = 19,875 m; h_i = 3,6 m (Gegenprobe mit Teilflächen 20 · 19,875 + 18,475 · 19,875: gleiches Φ_HL)
 - Hüllflächen: Außenwand 387,30 m² brutto − 116,19 m² Fenster; Fenster 116,19 m²; Bodenplatte 764,69 m² (Erdreich); Wand zur Gastro 79,50 m² (beheizter Nachbarraum, θ_j = 20 °C)
 - Lüftung: V̇_su = 3 708 m³/h; η_WRG = 0,75; n_50 = 1 h⁻¹
 - Wärmeerzeuger Φ_WE = 16 kW

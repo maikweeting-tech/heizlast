@@ -22,6 +22,7 @@ const FORMELN = [
   { id: 'fg',   f: 'Erdreich: f = f_g1 · f_g2 · G_w  mit  f_g2 = (θ_int − θ_m,e) / (θ_int − θ_e)', e: '–' },
   { id: 'fu',   f: 'unbeheizt: f = b_u = (θ_int − θ_u) / (θ_int − θ_e)', e: '–' },
   { id: 'fj',   f: 'beheizter Nachbarraum: f = (θ_int − θ_j) / (θ_int − θ_e)  (Φ < 0 = Gewinn)', e: '–' },
+  { id: 'A',    f: 'A = L · B  bzw.  A = Σ (± L_i · B_i) aus Teilflächen', e: 'm²' },
   { id: 'Vi',   f: 'V_i = A · h_i', e: 'm³' },
   { id: 'Vinf', f: 'V̇_inf = 2 · V_i · n_50 · e · ε', e: 'm³/h' },
   { id: 'tsu',  f: 'θ_su = θ_e + η_WRG · (θ_int − θ_e)', e: '°C' },
@@ -94,6 +95,7 @@ const EINHEITEN_SCHRITTE = [
   { schritt: 'f_g2, b_u, f_j = Δθ / Δθ', mal: ['K'], durch: ['K'], soll: '–' },
   { schritt: 'f_g = f_g1 · f_g2 · G_w', mal: ['–', '–', '–'], soll: '–' },
   { schritt: 'Φ_T,k = A_k · U_c · f · Δθ', mal: ['m²', 'W/(m²·K)', '–', 'K'], soll: 'W' },
+  { schritt: 'A = Σ (± L_i · B_i)', mal: ['m', 'm'], soll: 'm²' },
   { schritt: 'V_i = A · h_i', mal: ['m²', 'm'], soll: 'm³' },
   { schritt: 'V̇_inf = 2 · V_i · n_50 · e · ε', mal: ['m³', '1/h', '–', '–'], soll: 'm³/h' },
   { schritt: 'V̇_min = n_min · V_i', mal: ['1/h', 'm³'], soll: 'm³/h' },
@@ -130,12 +132,13 @@ function leeresProjekt() {
 }
 function leererRaum() {
   return {
-    id: neueId('r'), nr: '', name: '', geschoss: '', raumartId: '', amodus: 'LB', L: '', B: '', A: '', hi: '',
+    id: neueId('r'), nr: '', name: '', geschoss: '', raumartId: '', amodus: 'LB', L: '', B: '', A: '', teilflaechen: [], hi: '',
     flaechen: [],
     lueftung: { Vsu: '', suModus: 'eta', thetaSu: '', eta: '', Vex: '', n50: '', eId: '', epsId: '' },
     phiRH: ''
   };
 }
+function leereTeilflaeche() { return { id: neueId('tf'), bez: '', L: '', B: '', minus: false }; }
 function leereFlaeche() {
   return { id: neueId('f'), bauteilId: '', ausrichtung: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '' };
 }
@@ -180,9 +183,19 @@ function rechneRaum(raum, P) {
   const tint = ra ? p.nw(ra.tint, `nw.ra.${ra.id}.tint`, `θ_int (${ran})`) : NaN;
 
   // Geometrie
-  let A, L = NaN, B = NaN;
+  let A, L = NaN, B = NaN, teile = null;
   if (raum.amodus === 'A') A = p.ein(raum.A, 'raum.A', 'Fläche A');
-  else { L = p.ein(raum.L, 'raum.L', 'Länge L'); B = p.ein(raum.B, 'raum.B', 'Breite B'); A = L * B; }
+  else if (raum.amodus === 'TF') {
+    // Grundfläche aus Teilflächen: A = Σ (± L_i · B_i)
+    const tf = raum.teilflaechen || [];
+    p.bed(tf.length > 0, 'raum.teilflaechen', 'keine Teilfläche eingetragen');
+    teile = tf.map((t, i) => {
+      const Li = p.ein(t.L, `raum.tf.${t.id}.L`, `Teilfläche ${i + 1}: Länge`);
+      const Bi = p.ein(t.B, `raum.tf.${t.id}.B`, `Teilfläche ${i + 1}: Breite`);
+      return { id: t.id, bez: t.bez || '', L: Li, B: Bi, minus: !!t.minus, A: Li * Bi };
+    });
+    A = teile.reduce((a, t) => a + (t.minus ? -t.A : t.A), 0);
+  } else { L = p.ein(raum.L, 'raum.L', 'Länge L'); B = p.ein(raum.B, 'raum.B', 'Breite B'); A = L * B; }
   if (ok(A)) p.bed(A > 0, 'raum.A', 'Fläche A muss > 0 sein');
   const hi = p.ein(raum.hi, 'raum.hi', 'lichte Höhe h_i');
   const V = A * hi;
@@ -296,7 +309,7 @@ function rechneRaum(raum, P) {
   const vollstaendig = fehlt.length === 0 && dOK;
   return {
     id: raum.id, vollstaendig, fehlt, hinweise,
-    w: { A, L, B, hi, V, te, tint, dth, tme, fg1, Gw, rhocp, Vsu, tsu, eta, fsu, Vex, n50, e: eW, eps: epsW, Vinf, Vmin, nmin, Vaussen, maxText, suModus: lu.suModus,
+    w: { A, L, B, teile, hi, V, te, tint, dth, tme, fg1, Gw, rhocp, Vsu, tsu, eta, fsu, Vex, n50, e: eW, eps: epsW, Vinf, Vmin, nmin, Vaussen, maxText, suModus: lu.suModus,
          raumart: ra ? ra.name : '', standort: st ? st.name : '', eKlasse: eRow ? eRow.klasse : '', epsKlasse: epsRow ? epsRow.klasse : '' },
     zeilen,
     phiT: vollstaendig ? phiT : NaN, PhiVinf: vollstaendig ? PhiVinf : NaN, PhiVsu: vollstaendig ? PhiVsu : NaN,
@@ -334,5 +347,5 @@ function leseBauteilDatei(obj) {
 
 if (typeof module !== 'undefined') module.exports = {
   NORMSTAND, FORMELN, VARIANTEN, ANGRENZUNG, num, fmt, fmtV, ok, einheitenPruefung, einheitProdukt, EINH,
-  leeresProjekt, leererRaum, leereFlaeche, neueId, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY
+  leeresProjekt, leererRaum, leereFlaeche, leereTeilflaeche, neueId, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY
 };

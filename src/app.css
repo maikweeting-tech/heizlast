@@ -82,6 +82,7 @@ table.tab { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .tab th, .tab td { padding: 6px 7px; border-bottom: 1px solid var(--linie); text-align: left; vertical-align: middle; }
 .tab th { font-size: .74rem; color: var(--text2); background: var(--flaeche2); white-space: nowrap; font-weight: 700; }
 .tab th.zahl, .tab td.zahl { text-align: right; white-space: nowrap; }
+.tab th.zahl { font-family: inherit; }
 .tab input[type=text], .tab select { min-height: 36px; padding: 3px 6px; margin: 0; font-size: .88rem; border-radius: 5px; }
 .tab input.z { width: 86px; text-align: right; font-family: var(--mono); }
 .tab input.q { min-width: 210px; }
