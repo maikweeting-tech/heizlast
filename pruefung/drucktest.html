@@ -1,0 +1,5 @@
+<!doctype html><meta charset="utf-8"><title>Drucktest</title>
+<!-- Lädt das Testprojekt in den Browser-Speicher und öffnet die Vorzeigeseite (nur für die Prüfung). -->
+<script>
+fetch('testprojekt_kita_eg.json').then(r => r.text()).then(t => { localStorage.setItem('fh21.heizlast.v1', t); location.replace('../index.html#vorzeige'); });
+</script>

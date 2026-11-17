@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Heizlast-Rechner</title>
+<meta name="description" content="Raumweise Norm-Heizlast nach DIN EN 12831-1 mit DIN/TS 12831-1 – Lern- und Vorplanungswerkzeug">
+<meta name="theme-color" content="#1F2A36">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231F2A36'/%3E%3Cpath d='M18 46V22m10 24V22m10 24V22m10 24V22' stroke='%23C0392B' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M12 50h40' stroke='%23fff' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+/*CSS*/
+</style>
+<style id="druckstil"></style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-zeile">
+    <div>
+      <div id="titel">Heizlast-Rechner</div>
+      <div class="topbar-sub">Raumweise Norm-Heizlast · DIN EN 12831-1 mit DIN/TS 12831-1</div>
+    </div>
+  </div>
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="projekt" aria-selected="true">1 Projekt</button>
+    <button role="tab" data-tab="bauteile" aria-selected="false">2 Bauteile <span class="zaehler" id="z-bauteile">0</span></button>
+    <button role="tab" data-tab="normwerte" aria-selected="false">3 Normwerte</button>
+    <button role="tab" data-tab="raum" aria-selected="false">4 Raum eingeben</button>
+    <button role="tab" data-tab="tabelle" aria-selected="false">5 Raumtabelle <span class="zaehler" id="z-raeume">0</span></button>
+    <button role="tab" data-tab="vorzeige" aria-selected="false">6 Vorzeigeseite</button>
+  </nav>
+</header>
+<main>
+  <section id="tab-projekt"></section>
+  <section id="tab-bauteile" hidden></section>
+  <section id="tab-normwerte" hidden></section>
+  <section id="tab-raum" hidden></section>
+  <section id="tab-tabelle" hidden></section>
+  <section id="tab-vorzeige" hidden></section>
+</main>
+<dialog id="dlg"></dialog>
+<input type="file" id="datei" accept=".json,application/json" hidden>
+<div id="toast" role="status" aria-live="polite"></div>
+<script>
+/*VENDOR*/
+</script>
+<script>
+/*CALC*/
+</script>
+<script>
+/*APP*/
+</script>
+</body>
+</html>
