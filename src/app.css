@@ -166,3 +166,22 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
   .blattwrap { overflow: visible; }
   .blatt { width: auto; min-height: 0; padding: 0; box-shadow: none; margin: 0; }
 }
+
+/* i-Erklärungen */
+.info { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin: 0 2px; border-radius: 50%;
+  background: var(--navy-hell); color: var(--navy); border: 1px solid var(--linie); font: italic 700 12px/1 Georgia, "Times New Roman", serif;
+  cursor: pointer; vertical-align: middle; flex: none; text-transform: none; letter-spacing: 0; position: relative; }
+.info::after { content: ""; position: absolute; inset: -10px; } /* größere Tippfläche am Handy */
+.info:hover, .info:focus-visible { background: var(--rot); border-color: var(--rot); color: #fff; outline: none; }
+:root[data-theme="dark"] .info { color: var(--text); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .info { color: var(--text); } }
+.ergebnis .haupt .info { background: rgba(255,255,255,.2); color: #fff; border-color: rgba(255,255,255,.5); }
+#infobox { position: fixed; z-index: 60; background: var(--flaeche); color: var(--text); border: 1px solid var(--linie); border-left: 4px solid var(--rot);
+  border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.22); padding: 12px 34px 12px 14px; font-size: .92rem; line-height: 1.45; font-weight: 400; }
+#infobox p { margin: 6px 0 0; }
+#infobox .info-kopf { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+#infobox .info-zeichen { font-family: var(--mono); font-weight: 700; color: var(--rot); font-size: 1.05rem; }
+#infobox .info-einh { color: var(--text2); font-size: .85rem; }
+#infobox .info-zu { position: absolute; top: 4px; right: 4px; width: 30px; height: 30px; border: 0; background: transparent; color: var(--text2); font-size: 1.3rem; cursor: pointer; border-radius: 6px; }
+#infobox .info-zu:hover { background: var(--flaeche2); }
+@media print { .info, #infobox { display: none !important; } }

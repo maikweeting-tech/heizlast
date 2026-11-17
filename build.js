@@ -7,7 +7,7 @@ let html = lies('src/index.html');
 const teile = {
   '/*CSS*/': lies('src/app.css'),
   '/*VENDOR*/': js(lies('vendor/xlsx.mini.min.js')) + '\n' + js(lies('vendor/html2canvas.min.js')),
-  '/*CALC*/': js(lies('src/calc.js')),
+  '/*CALC*/': js(lies('src/calc.js')) + '\n' + js(lies('src/begriffe.js')),
   '/*APP*/': js(lies('src/app.js'))
 };
 for (const [k, v] of Object.entries(teile)) { if (!html.includes(k)) throw new Error('Marke fehlt: ' + k); html = html.replace(k, () => v); }

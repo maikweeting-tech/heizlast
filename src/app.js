@@ -45,6 +45,8 @@ const setze = (p, v) => { const [o, k] = ziel(p); if (o) o[k] = v; };
 const hole = p => { const [o, k] = ziel(p); return o ? o[k] : ''; };
 
 // ── Bausteine ─────────────────────────────────────────────────────────────
+// kleines i: Erklärung zum Begriff (BEGRIFFE in begriffe.js)
+const info = k => { const b = BEGRIFFE[k]; if (!b) return ''; return `<span class="info" role="button" tabindex="0" data-info="${k}" aria-label="Erklärung: ${esc(b.n)}" title="${esc(b.n)}">i</span>`; };
 const inp = (b, pf, cls = 'z', extra = '') => `<input type="text" ${cls === 'z' ? 'inputmode="decimal" ' : ''}class="${cls}" data-b="${b}"${pf ? ` data-pf="${pf}"` : ''} value="${esc(hole(b))}" ${extra}>`;
 const feld = (label, b, pf, einh = '', cls = '', extra = '') =>
   `<label class="feld">${label}${einh ? ` <span class="einh">in ${einh}</span>` : ''}<input type="text"${cls === 'z' ? ' inputmode="decimal"' : ''} data-b="${b}"${pf ? ` data-pf="${pf}"` : ''} value="${esc(hole(b))}" ${extra}></label>`;
@@ -61,8 +63,8 @@ function nwStatus(n) {
 }
 const badge = n => { const [c, t] = nwStatus(n); return `<span class="status ${c}">${t}</span>`; };
 const nwText = (n, d, einh) => (n && ok(num(n.wert)) ? `${W(num(n.wert), d)} ${einh}` : '–');
-function nwZeile(titel, sym, einh, b, pf, extraZelle = '') {
-  return `<tr>${extraZelle}<td>${titel}</td><td>${sym}</td><td>${inp(b + '.wert', pf + '.wert')}</td><td>${einh}</td>
+function nwZeile(titel, sym, einh, b, pf, extraZelle = '', ik = '') {
+  return `<tr>${extraZelle}<td>${titel}${ik ? ' ' + info(ik) : ''}</td><td>${sym}</td><td>${inp(b + '.wert', pf + '.wert')}</td><td>${einh}</td>
     <td>${inp(b + '.quelle', pf + '.quelle', 'q', 'placeholder="Norm, Tabelle, Seite"')}</td><td>${haken(b + '.geprueft', pf + '.geprueft')}</td>
     <td data-o="nws:${b}">${badge(hole(b))}</td></tr>`;
 }
@@ -103,16 +105,16 @@ function rProjekt() {
     <label class="feld">Kurzbeschreibung <span class="einh">(erscheint auf der Vorzeigeseite)</span><textarea data-b="projekt.beschreibung">${esc(S.projekt.beschreibung)}</textarea></label>
   </div>
   <div class="karte"><h2>Standort</h2>
-    <label class="feld">Standort aus der Normwert-Tabelle ${sel('projekt.standortId', 'projekt.standortId', opts)}</label>
+    <label class="feld">Standort aus der Normwert-Tabelle ${info('standort')} ${sel('projekt.standortId', 'projekt.standortId', opts)}</label>
     ${st ? `<div class="tabwrap"><table class="tab"><tr><th>Größe</th><th class="zahl">Wert</th><th>Quelle</th><th>Status</th></tr>
-      <tr><td>Norm-Außentemperatur θ<sub>e</sub></td><td class="zahl">${nwText(st.te, 1, '°C')}</td><td>${esc(st.te.quelle)}</td><td>${badge(st.te)}</td></tr>
-      <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub></td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
+      <tr><td>Norm-Außentemperatur θ<sub>e</sub> ${info('theta_e')}</td><td class="zahl">${nwText(st.te, 1, '°C')}</td><td>${esc(st.te.quelle)}</td><td>${badge(st.te)}</td></tr>
+      <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub> ${info('theta_me')}</td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
       : '<p class="hinweis">Standorte legst du im Tab „3 Normwerte“ an.</p>'}
   </div>
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
-    <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub>', 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
+    <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub> ' + info('PhiWE'), 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis ${info('eta_nw')}</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
   </div>
-  <h2 style="margin:18px 0 8px">Rechenansatz: Abweichungen Excel-Blatt ↔ Norm</h2>
+  <h2 style="margin:18px 0 8px">Rechenansatz: Abweichungen Excel-Blatt ↔ Norm ${info('variante')}</h2>
   <p class="hinweis">Wo das Excel-Blatt „Heizlast“ von DIN EN 12831-1 abweicht, wählst du hier die Variante. Der Testfall (18,29 kW) gilt für den Excel-Ansatz.</p>
   ${var1('infiltration')}${var1('erdreich')}${var1('vmin')}
   <div class="karte"><h2>Regelwerk und Ausgabestand</h2>
@@ -128,6 +130,9 @@ function rProjekt() {
       </table></div><p class="hinweis klein">ρ·c<sub>p</sub> in Wh/(m³·K) mal V̇ in m³/h mal Δθ in K ergibt W.</p>
     </details>
   </div>
+  <div class="karte"><h2>Begriffe und Formelzeichen</h2>
+    <details class="auf"><summary>Alle Begriffe anzeigen (${Object.keys(BEGRIFFE).length})</summary>${glossarHtml()}</details>
+  </div>
   <div class="karte"><h2>Daten</h2>
     <div class="knoepfe">
       <button class="btn btn-klein" data-a="json-export">Projekt als JSON speichern</button>
@@ -138,6 +143,27 @@ function rProjekt() {
     <p class="hinweis klein" style="margin-top:8px">Alle Eingaben werden automatisch im Browser gespeichert (localStorage). Zum Sichern oder Weitergeben das Projekt als JSON speichern.</p>
   </div>`;
 }
+function glossarHtml() {
+  return `<div class="tabwrap"><table class="tab"><tr><th>Zeichen</th><th>Begriff</th><th>Einheit</th><th>Erklärung</th></tr>${Object.values(BEGRIFFE)
+    .map(b => `<tr><td>${idx(esc(b.z)) || '–'}</td><td><b>${esc(b.n)}</b></td><td>${esc(b.e) || '–'}</td><td class="klein">${idx(esc(b.t))}</td></tr>`).join('')}</table></div>`;
+}
+function zeigeInfo(el) {
+  const b = BEGRIFFE[el.dataset.info]; if (!b) return;
+  let box = $('infobox');
+  if (box && box._von === el && !box.hidden) { schliesseInfo(); return; }
+  if (!box) { box = document.createElement('div'); box.id = 'infobox'; box.setAttribute('role', 'dialog'); document.body.appendChild(box); }
+  box._von = el;
+  box.innerHTML = `<button type="button" class="info-zu" aria-label="Schließen">×</button>
+    <div class="info-kopf">${b.z ? `<span class="info-zeichen">${idx(esc(b.z))}</span>` : ''}<b>${esc(b.n)}</b>${b.e ? `<span class="info-einh">in ${esc(b.e)}</span>` : ''}</div>
+    <p>${idx(esc(b.t))}</p>`;
+  box.hidden = false;
+  const r = el.getBoundingClientRect(), bw = Math.min(340, window.innerWidth - 24);
+  box.style.width = bw + 'px';
+  box.style.left = Math.max(12, Math.min(r.left + r.width / 2 - bw / 2, window.innerWidth - bw - 12)) + 'px';
+  const unten = r.bottom + 8, h = box.offsetHeight;
+  box.style.top = (unten + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 8) : unten) + 'px';
+}
+function schliesseInfo() { const box = $('infobox'); if (box) { box.hidden = true; box._von = null; } }
 function nachweisText() {
   if (!G.summe) return 'Σ Φ_HL fehlt (Räume unvollständig oder keine Räume)';
   if (!G.nachweis) return 'Φ_WE fehlt';
@@ -169,7 +195,7 @@ function rBauteile() {
       <button class="btn btn-klein" data-a="json-import">JSON-Datei importieren</button>
       <button class="btn btn-klein" data-a="bt-neu">+ Bauteil manuell</button>
     </div>
-    ${S.bauteile.length ? `<div class="tabwrap"><table class="tab"><tr><th>Name</th><th>Bauteilart</th><th class="zahl">U<br>W/(m²·K)</th><th class="zahl">ΔU<sub>WB</sub><br>W/(m²·K)</th><th class="zahl">U<sub>c</sub><br>W/(m²·K)</th><th>Quelle U</th><th>Quelle ΔU<sub>WB</sub></th><th>Herkunft</th><th></th></tr>${zeilen}</table></div>`
+    ${S.bauteile.length ? `<div class="tabwrap"><table class="tab"><tr><th>Name</th><th>Bauteilart ${info('bauteilart')}</th><th class="zahl">U ${info('U')}<br>W/(m²·K)</th><th class="zahl">ΔU<sub>WB</sub> ${info('dUWB')}<br>W/(m²·K)</th><th class="zahl">U<sub>c</sub> ${info('Uc')}<br>W/(m²·K)</th><th>Quelle U ${info('quelle')}</th><th>Quelle ΔU<sub>WB</sub></th><th>Herkunft ${info('herkunft')}</th><th></th></tr>${zeilen}</table></div>`
       : '<p class="hinweis">Noch keine Bauteile.</p>'}
   </div>`;
 }
@@ -178,23 +204,23 @@ function ucText(b) { const u = num(b.U) + num(b.dUWB); return ok(u) ? W(u, 3) : 
 // ── 3 Normwerte ───────────────────────────────────────────────────────────
 function rNormwerte() {
   const N = S.normwerte;
-  const kopf = (extra = '') => `<tr>${extra}<th>Größe</th><th>Zeichen</th><th>Wert</th><th>Einheit</th><th>Quelle (Norm, Tabelle, Seite)</th><th>geprüft</th><th>Status</th></tr>`;
+  const kopf = (extra = '') => `<tr>${extra}<th>Größe</th><th>Zeichen</th><th>Wert</th><th>Einheit</th><th>Quelle (Norm, Tabelle, Seite) ${info('quelle')}</th><th>geprüft ${info('geprueft')}</th><th>Status</th></tr>`;
   const weg = (art, id) => `<button class="btn-icon no-print" data-a="nw-weg" data-art="${art}" data-id="${id}" title="Zeile löschen">×</button>`;
   const st = N.standorte.map(s => {
     const b = `normwerte.standorte.#${s.id}`, pf = `nw.st.${s.id}`;
-    return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Standort ${inp(b + '.name', '', 'n', 'placeholder="Ort / PLZ"')}${weg('standorte', s.id)}</div></td></tr>
-      ${nwZeile('Norm-Außentemperatur', 'θ<sub>e</sub>', '°C', b + '.te', pf + '.te', '<td></td>')}
-      ${nwZeile('Jahresmittel der Außentemperatur', 'θ<sub>m,e</sub>', '°C', b + '.tme', pf + '.tme', '<td></td>')}`;
+    return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Standort ${info('standort')} ${inp(b + '.name', '', 'n', 'placeholder="Ort / PLZ"')}${weg('standorte', s.id)}</div></td></tr>
+      ${nwZeile('Norm-Außentemperatur', 'θ<sub>e</sub>', '°C', b + '.te', pf + '.te', '<td></td>', 'theta_e')}
+      ${nwZeile('Jahresmittel der Außentemperatur', 'θ<sub>m,e</sub>', '°C', b + '.tme', pf + '.tme', '<td></td>', 'theta_me')}`;
   }).join('');
   const ra = N.raumarten.map(r => {
     const b = `normwerte.raumarten.#${r.id}`, pf = `nw.ra.${r.id}`;
-    return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Raumart ${inp(b + '.name', '', 'n', 'placeholder="z. B. Gruppenraum"')}${weg('raumarten', r.id)}</div></td></tr>
-      ${nwZeile('Norm-Innentemperatur', 'θ<sub>int</sub>', '°C', b + '.tint', pf + '.tint', '<td></td>')}
-      ${nwZeile('Mindestluftwechsel (nur Variante Norm)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>')}`;
+    return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Raumart ${info('raumart')} ${inp(b + '.name', '', 'n', 'placeholder="z. B. Gruppenraum"')}${weg('raumarten', r.id)}</div></td></tr>
+      ${nwZeile('Norm-Innentemperatur', 'θ<sub>int</sub>', '°C', b + '.tint', pf + '.tint', '<td></td>', 'theta_int')}
+      ${nwZeile('Mindestluftwechsel (nur Variante Norm)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>', 'nmin')}`;
   }).join('');
   const liste = (art, sym, titel, pfk) => N[art].map(x => {
     const b = `normwerte.${art}.#${x.id}`;
-    return nwZeile(`${titel} ${inp(b + '.klasse', '', 'n', 'placeholder="Klasse / Bedingung"')}`, sym, '–', b + '.w', `nw.${pfk}.${x.id}.w`, `<td>${weg(art, x.id)}</td>`);
+    return nwZeile(`${titel} ${info(pfk)} ${inp(b + '.klasse', '', 'n', 'placeholder="Klasse / Bedingung"')} ${info('klasse')}`, sym, '–', b + '.w', `nw.${pfk}.${x.id}.w`, `<td>${weg(art, x.id)}</td>`);
   }).join('');
   return `<div class="karte"><h2>Normwert-Tabellen</h2>
     <p class="hinweis">Die App enthält keine Normwerte. Trage jeden Wert selbst aus der Norm ein, mit Quelle (Norm, Tabelle, Seite), und setze den Haken „geprüft“. Nur geprüfte Werte gehen in die Rechnung ein.</p></div>
@@ -203,12 +229,12 @@ function rNormwerte() {
   <div class="karte"><h3>Raumarten: θ<sub>int</sub> und Mindestluftwechsel</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${ra}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="nw-neu" data-art="raumarten">+ Raumart</button></div>
   <div class="karte"><h3>Erdreich und Luft</h3><div class="tabwrap"><table class="tab">${kopf()}
-    ${nwZeile('Korrekturfaktor jährliche Temperaturschwankung', 'f<sub>g1</sub>', '–', 'normwerte.fg1', 'nw.fg1')}
-    ${nwZeile('Korrekturfaktor Grundwasser', 'G<sub>w</sub>', '–', 'normwerte.Gw', 'nw.Gw')}
-    ${nwZeile('Wärmekapazität der Luft', 'ρ·c<sub>p</sub>', 'Wh/(m³·K)', 'normwerte.rhocp', 'nw.rhocp')}</table></div></div>
-  <div class="karte"><h3>Abschirmungskoeffizient e</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('e', 'e', 'e', 'e')}</table></div>
+    ${nwZeile('Korrekturfaktor jährliche Temperaturschwankung', 'f<sub>g1</sub>', '–', 'normwerte.fg1', 'nw.fg1', '', 'fg1')}
+    ${nwZeile('Korrekturfaktor Grundwasser', 'G<sub>w</sub>', '–', 'normwerte.Gw', 'nw.Gw', '', 'Gw')}
+    ${nwZeile('Wärmekapazität der Luft', 'ρ·c<sub>p</sub>', 'Wh/(m³·K)', 'normwerte.rhocp', 'nw.rhocp', '', 'rhocp')}</table></div></div>
+  <div class="karte"><h3>Abschirmungskoeffizient e ${info('e')}</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('e', 'e', 'e', 'e')}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="nw-neu" data-art="e">+ Zeile e</button></div>
-  <div class="karte"><h3>Höhenkorrekturfaktor ε</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('eps', 'ε', 'ε', 'eps')}</table></div>
+  <div class="karte"><h3>Höhenkorrekturfaktor ε ${info('eps')}</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('eps', 'ε', 'ε', 'eps')}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="nw-neu" data-art="eps">+ Zeile ε</button></div>`;
 }
 
@@ -237,35 +263,35 @@ function rRaum() {
   const lu = `${e}.lueftung`;
   return `<div class="karte"><h2>${S.entwurfVon ? 'Raum bearbeiten' : 'Neuen Raum eingeben'}</h2>
     <div class="reihe vier">${feld('Nr.', e + '.nr', 'raum.nr', '', 't')}${feld('Raumname', e + '.name', 'raum.name', '', 't')}${feld('Geschoss', e + '.geschoss', '', '', 't')}
-      <label class="feld">Raumart → θ<sub>int</sub>${sel(e + '.raumartId', 'raum.raumartId', raOpts)}</label></div>
+      <label class="feld">Raumart ${info('raumart')} → θ<sub>int</sub> ${info('theta_int')}${sel(e + '.raumartId', 'raum.raumartId', raOpts)}</label></div>
     <div class="radio"><label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="LB" ${r.amodus !== 'A' && r.amodus !== 'TF' ? 'checked' : ''}> Fläche aus Länge × Breite</label>
-      <label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="TF" ${r.amodus === 'TF' ? 'checked' : ''}> aus mehreren Teilflächen</label>
+      <label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="TF" ${r.amodus === 'TF' ? 'checked' : ''}> aus mehreren Teilflächen ${info('teilflaeche')}</label>
       <label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="A" ${r.amodus === 'A' ? 'checked' : ''}> Fläche A direkt</label></div>
     ${r.amodus === 'TF' ? teilflaechenHtml(r) : ''}
     <div class="reihe vier">
-      ${r.amodus === 'A' ? feld('Fläche A', e + '.A', 'raum.A', 'm²', 'z') : r.amodus === 'TF' ? '' : feld('Länge L', e + '.L', 'raum.L', 'm', 'z') + feld('Breite B', e + '.B', 'raum.B', 'm', 'z')}
-      ${feld('lichte Höhe h<sub>i</sub>', e + '.hi', 'raum.hi', 'm', 'z')}
-      <div><span class="hinweis klein">A in m² · V<sub>i</sub> = A · h<sub>i</sub> in m³</span><span class="ausgabe" data-o="AV">–</span></div>
+      ${r.amodus === 'A' ? feld('Fläche A ' + info('A'), e + '.A', 'raum.A', 'm²', 'z') : r.amodus === 'TF' ? '' : feld('Länge L ' + info('L'), e + '.L', 'raum.L', 'm', 'z') + feld('Breite B ' + info('B'), e + '.B', 'raum.B', 'm', 'z')}
+      ${feld('lichte Höhe h<sub>i</sub> ' + info('hi'), e + '.hi', 'raum.hi', 'm', 'z')}
+      <div><span class="hinweis klein">A ${info('A')} in m² · V<sub>i</sub> ${info('Vi')} in m³</span><span class="ausgabe" data-o="AV">–</span></div>
     </div>
   </div>
   <div class="karte"><h2>Hüllflächen</h2>
-    <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil</th><th>Ausrichtung</th><th class="zahl">A brutto<br>m²</th><th class="zahl">Abzug Öffn.<br>m²</th><th class="zahl">A netto<br>m²</th><th>angrenzend an</th><th>θ<sub>u</sub> / θ<sub>j</sub> in °C${norm ? ' · U<sub>equiv</sub>' : ''}</th><th class="zahl">Φ<sub>T</sub><br>W</th><th></th></tr>
+    <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C${norm ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
     ${fl || '<tr><td colspan="10" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>
     ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Bauteile“ anlegen.</p>'}
   </div>
   <div class="karte"><h2>Lüftung</h2>
-    <div class="reihe drei">${feld('Zuluftvolumenstrom V̇<sub>su</sub>', lu + '.Vsu', 'raum.lu.Vsu', 'm³/h', 'z')}
+    <div class="reihe drei">${feld('Zuluftvolumenstrom V̇<sub>su</sub> ' + info('Vsu'), lu + '.Vsu', 'raum.lu.Vsu', 'm³/h', 'z')}
       <div><span class="hinweis klein">Zulufttemperatur über</span><div class="radio">
-        <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="eta" ${r.lueftung.suModus !== 'theta' ? 'checked' : ''}> η<sub>WRG</sub></label>
-        <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="theta" ${r.lueftung.suModus === 'theta' ? 'checked' : ''}> θ<sub>su</sub> direkt</label></div></div>
-      ${r.lueftung.suModus === 'theta' ? feld('Zulufttemperatur θ<sub>su</sub>', lu + '.thetaSu', 'raum.lu.thetaSu', '°C', 'z') : feld('Rückwärmzahl η<sub>WRG</sub>', lu + '.eta', 'raum.lu.eta', '–', 'z')}
+        <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="eta" ${r.lueftung.suModus !== 'theta' ? 'checked' : ''}> <span>η<sub>WRG</sub></span> ${info('eta')}</label>
+        <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="theta" ${r.lueftung.suModus === 'theta' ? 'checked' : ''}> <span>θ<sub>su</sub> direkt</span> ${info('theta_su')}</label></div></div>
+      ${r.lueftung.suModus === 'theta' ? feld('Zulufttemperatur θ<sub>su</sub> ' + info('theta_su'), lu + '.thetaSu', 'raum.lu.thetaSu', '°C', 'z') : feld('Rückwärmzahl η<sub>WRG</sub> ' + info('eta'), lu + '.eta', 'raum.lu.eta', '–', 'z')}
     </div>
-    <div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> (Info)', lu + '.Vex', '', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub>', lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
-      <div><span class="hinweis klein">θ<sub>su</sub> in °C · V̇<sub>inf</sub> in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>
-    <div class="reihe"><label class="feld">Abschirmungskoeffizient e ${sel(lu + '.eId', 'raum.lu.eId', eOpts)}</label><label class="feld">Höhenkorrekturfaktor ε ${sel(lu + '.epsId', 'raum.lu.epsId', epsOpts)}</label></div>
+    <div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex'), lu + '.Vex', '', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub> ' + info('n50'), lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
+      <div><span class="hinweis klein">θ<sub>su</sub> in °C · V̇<sub>inf</sub> ${info('Vinf')} in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>
+    <div class="reihe"><label class="feld">Abschirmungskoeffizient e ${info('e')} ${sel(lu + '.eId', 'raum.lu.eId', eOpts)}</label><label class="feld">Höhenkorrekturfaktor ε ${info('eps')} ${sel(lu + '.epsId', 'raum.lu.epsId', epsOpts)}</label></div>
   </div>
-  <div class="karte"><h2>Aufheizzuschlag</h2>
+  <div class="karte"><h2>Aufheizzuschlag ${info('PhiRH')}</h2>
     <div class="reihe">${feld('Φ<sub>RH</sub> (nur wenn gewünscht, sonst leer)', e + '.phiRH', 'raum.phiRH', 'W', 'z')}<p class="hinweis klein">Ohne Eingabe wird kein Aufheizzuschlag angesetzt.</p></div>
   </div>
   <div class="karte"><h2>Ergebnis des Raums</h2><div data-o="raumerg"></div>
@@ -283,7 +309,7 @@ function teilflaechenHtml(r) {
       <td class="zahl" data-o="tf:${t.id}">–</td>
       <td><button class="btn-icon" data-a="tf-weg" data-id="${t.id}" title="Teilfläche entfernen">×</button></td></tr>`;
   }).join('');
-  return `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bezeichnung</th><th class="zahl">Länge L<br>m</th><th class="zahl">Breite B<br>m</th><th>Aussparung</th><th class="zahl">A<sub>i</sub><br>m²</th><th></th></tr>
+  return `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bezeichnung</th><th class="zahl">Länge L<br>m</th><th class="zahl">Breite B<br>m</th><th>Aussparung</th><th class="zahl">A<sub>i</sub> ${info('teilflaeche')}<br>m²</th><th></th></tr>
     ${z || '<tr><td colspan="7" class="hinweis" data-pf="raum.teilflaechen">Noch keine Teilfläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin:8px 0 12px" data-a="tf-neu">+ Teilfläche</button>
     <p class="hinweis klein">Grundfläche A = Σ (± L<sub>i</sub> · B<sub>i</sub>). „abziehen“ für Aussparungen, z. B. Treppenloch oder Schacht.</p>`;
@@ -291,8 +317,8 @@ function teilflaechenHtml(r) {
 function raumErgebnisHtml(R) {
   const hw = R.hinweise.map(h => `<div class="hinweisbox">${idx(esc(h))}</div>`).join('');
   if (!R.vollstaendig) return fehlHtml(R) + hw;
-  return `<div class="ergebnis"><div>Φ<sub>T</sub><b>${W(R.phiT)} W</b></div><div>Φ<sub>V</sub><b>${W(R.phiV)} W</b></div><div>Φ<sub>RH</sub><b>${R.rhGesetzt ? W(R.phiRH) + ' W' : '–'}</b></div>
-    <div class="haupt">Φ<sub>HL</sub><b>${W(R.phiHL)} W</b></div><div>φ<b>${W(R.phiSpez, 1)} W/m²</b></div></div>${hw}`;
+  return `<div class="ergebnis"><div>Φ<sub>T</sub> ${info('PhiT')}<b>${W(R.phiT)} W</b></div><div>Φ<sub>V</sub> ${info('PhiV')}<b>${W(R.phiV)} W</b></div><div>Φ<sub>RH</sub> ${info('PhiRH')}<b>${R.rhGesetzt ? W(R.phiRH) + ' W' : '–'}</b></div>
+    <div class="haupt">Φ<sub>HL</sub> ${info('PhiHL')}<b>${W(R.phiHL)} W</b></div><div>φ ${info('phi')}<b>${W(R.phiSpez, 1)} W/m²</b></div></div>${hw}`;
 }
 function fehlHtml(R) {
   return `<div class="fehlliste"><h3>Raum unvollständig – kein Ergebnis</h3><ul>${R.fehlt.map(x => `<li>${idx(esc(x.text))}</li>`).join('')}</ul></div>`;
@@ -313,11 +339,11 @@ function rTabelle() {
   }).join('');
   const s = G.summe;
   return `<div class="karte"><h2>Raumtabelle</h2><div class="tabwrap"><table class="tab">
-    <tr><th></th><th>Nr.</th><th>Raum</th><th class="zahl">A<br>m²</th><th class="zahl">V<br>m³</th><th class="zahl">θ<sub>int</sub><br>°C</th><th class="zahl">Φ<sub>T</sub><br>W</th><th class="zahl">Φ<sub>V</sub><br>W</th><th class="zahl">Φ<sub>RH</sub><br>W</th><th class="zahl">Φ<sub>HL</sub><br>W</th><th class="zahl">φ<br>W/m²</th><th>Status</th><th></th></tr>
+    <tr><th></th><th>Nr.</th><th>Raum</th><th class="zahl">A ${info('A')}<br>m²</th><th class="zahl">V ${info('Vi')}<br>m³</th><th class="zahl">θ<sub>int</sub> ${info('theta_int')}<br>°C</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th class="zahl">Φ<sub>V</sub> ${info('PhiV')}<br>W</th><th class="zahl">Φ<sub>RH</sub> ${info('PhiRH')}<br>W</th><th class="zahl">Φ<sub>HL</sub> ${info('PhiHL')}<br>W</th><th class="zahl">φ ${info('phi')}<br>W/m²</th><th>Status</th><th></th></tr>
     ${z}
     <tr class="summe"><td></td><td></td><td>Summe</td><td class="zahl">${s ? W(s.A, 2) : '–'}</td><td class="zahl">${s ? W(s.V, 1) : '–'}</td><td></td><td class="zahl">${s ? W(s.phiT) : '–'}</td><td class="zahl">${s ? W(s.phiV) : '–'}</td><td class="zahl">${s ? W(s.phiRH) : '–'}</td><td class="zahl">${s ? W(s.phiHL) : '–'}</td><td class="zahl">${s ? W(s.phiSpez, 1) : '–'}</td><td colspan="2">${s ? '' : '<span class="status no">Räume unvollständig</span>'}</td></tr>
     </table></div>
-    <div class="ergebnis"><div class="haupt">Gebäudeheizlast Σ Φ<sub>HL</sub><b>${s ? W(s.phiHL / 1000, 2) + ' kW' : '–'}</b></div><div>Nachweis Wärmeerzeuger<b style="font-size:.9rem">${esc(nachweisText())}</b></div></div>
+    <div class="ergebnis"><div class="haupt">Gebäudeheizlast Σ Φ<sub>HL</sub> ${info('PhiGeb')}<b>${s ? W(s.phiHL / 1000, 2) + ' kW' : '–'}</b></div><div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b style="font-size:.9rem">${esc(nachweisText())}</b></div></div>
     <p class="hinweis klein">Gebäudeheizlast als Summe der Raumheizlasten ohne Abminderungen.</p></div>`;
 }
 // Rechenweg-Tabelle wie Folienwerte F2_Rechenweg
@@ -332,7 +358,7 @@ function rwTabelle(R, papier) {
   h += zr('<b>Σ Lüftung Φ<sub>V</sub></b>', '', '', '', '', '', `<b>${W(R.phiV)}</b>`, papier ? 'zw' : 'summe');
   if (R.rhGesetzt) h += zr('Aufheizzuschlag Φ<sub>RH</sub>', '', '', '', '', '', W(R.phiRH));
   h += zr('<b>Norm-Heizlast Φ<sub>HL</sub></b>', '', '', '', '', '', `<b>${W(R.phiHL)}</b>`, papier ? 'ges' : 'summe');
-  return `<div class="tabwrap"><table class="tab"><thead><tr><th>Anteil</th><th class="${c}">Bezugsgröße</th><th>Einheit</th><th class="${c}">Kennwert</th><th class="${c}">Faktor</th><th class="${c}">Δθ in K</th><th class="${c}">Φ in W</th></tr></thead><tbody>${h}</tbody></table></div>
+  return `<div class="tabwrap"><table class="tab"><thead><tr><th>Anteil</th><th class="${c}">Bezugsgröße</th><th>Einheit</th><th class="${c}">Kennwert${papier ? '' : ' ' + info('kennwert')}</th><th class="${c}">Faktor${papier ? '' : ' ' + info('f')}</th><th class="${c}">Δθ in K${papier ? '' : ' ' + info('dtheta')}</th><th class="${c}">Φ in W</th></tr></thead><tbody>${h}</tbody></table></div>
     <p class="hinweis klein" style="margin:2px 0 6px">Kennwert: U<sub>c</sub> in W/(m²·K) bzw. ρ·c<sub>p</sub> in Wh/(m³·K). Φ = Bezugsgröße · Kennwert · Faktor · Δθ.</p>`;
 }
 // Formel → Werte → Ergebnis
@@ -706,6 +732,18 @@ function start() {
     const r = AKTION[b.dataset.a](b.dataset);
     if (r !== false) { speichern(); render(); }
   });
+  document.addEventListener('click', e => {
+    const i = e.target.closest('[data-info]');
+    if (i) { e.preventDefault(); e.stopPropagation(); zeigeInfo(i); return; }
+    if (e.target.closest('.info-zu') || !e.target.closest('#infobox')) schliesseInfo();
+  }, true);
+  document.addEventListener('keydown', e => {
+    const i = e.target.closest && e.target.closest('[data-info]');
+    if (i && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); zeigeInfo(i); }
+    if (e.key === 'Escape') schliesseInfo();
+  });
+  window.addEventListener('scroll', schliesseInfo, { passive: true });
+  window.addEventListener('resize', schliesseInfo);
   $('datei').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => dateiGelesen(rd.result); rd.readAsText(f); });
   window.addEventListener('beforeprint', () => { if (tab !== 'vorzeige') zeigeTab('vorzeige'); druckstil(); });
   const h = location.hash.slice(1);

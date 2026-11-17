@@ -15,6 +15,7 @@ Die App ist eine einzige Datei, `index.html`. Sie läuft offline und speichert i
 | Datei | Inhalt |
 |---|---|
 | `src/calc.js` | Rechenkern: Formeln, Varianten, Normstand, Einheitenkontrolle |
+| `src/begriffe.js` | Erklärungen für die i-Symbole (Begriff, Formelzeichen, Einheit) – ohne Normwerte |
 | `src/app.js`, `src/app.css`, `src/index.html` | Oberfläche, Vorzeigeseite, Druck, PNG- und xlsx-Export |
 | `vendor/` | SheetJS 0.18.5 (mini) und html2canvas 1.4.1, werden eingebettet |
 | `build.js` | erzeugt `index.html` aus `src/` und `vendor/` |
