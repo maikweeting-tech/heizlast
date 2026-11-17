@@ -101,3 +101,11 @@ Ich habe die sichtbaren Texte in App und Vorzeigeseite durchgesehen und auf Ersa
 - DIN EN 12831-1:2017-09: Ausgabestand bei DIN Media bestätigen.
 - Norm-Varianten (Infiltration nach Gl. 18 bis 31, U_equiv, Gl. 17) mit dem Normtext abgleichen, sobald er vorliegt.
 - Die Normwerte im Testprojekt stammen aus der Excel-Mappe und sind dort als „aus dem Gedächtnis, prüfen“ vermerkt. Für die Mappe bitte durch die Werte aus DIN/TS 12831-1 ersetzen und erst dann abhaken.
+
+## Nachtrag 17.11.2026: Tab „2 Wärmeschutz“
+
+- Die komplette Wärmeschutz-App ist als Tab eingebaut. `build.js` liest sie beim Bauen aus dem Ordner `waermeschutz`, es gibt keine zweite Kopie. Die eigenständige Wärmeschutz-App bleibt unverändert nutzbar.
+- Im Tab ist die Kopfzeile ausgeblendet, ebenso der Teilen-Link und der Service Worker. Die Eingaben werden im Browser gesichert (`fh21.heizlast.ws`) und waren nach dem Neuladen wieder da (4 Schichten).
+- „An Heizlast-App übergeben“ legt das Bauteil direkt im Bauteilkatalog ab, ohne Download. Geprüft mit dem Beispiel „Außenwand KS + WDVS“: U = 0,234 W/(m²·K).
+- Schichten ohne belegte Quelle meldet die App beim Bauteil: λ „ungeprüft“, eigene Eingabe ohne Quelle oder Luftschicht. Das Bauteil braucht dann den Haken „Schichtwerte geprüft“, sonst ist der Raum unvollständig. Geprüft mit Zellulose-Einblasdämmung 040 (in der Baustoffliste als ungeprüft markiert).
+- Tests: Heizlast 69/69, Wärmeschutz 117/117.

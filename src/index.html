@@ -22,15 +22,17 @@
   </div>
   <nav class="tabs" role="tablist" id="tabs">
     <button role="tab" data-tab="projekt" aria-selected="true">1 Projekt</button>
-    <button role="tab" data-tab="bauteile" aria-selected="false">2 Bauteile <span class="zaehler" id="z-bauteile">0</span></button>
-    <button role="tab" data-tab="normwerte" aria-selected="false">3 Normwerte</button>
-    <button role="tab" data-tab="raum" aria-selected="false">4 Raum eingeben</button>
-    <button role="tab" data-tab="tabelle" aria-selected="false">5 Raumtabelle <span class="zaehler" id="z-raeume">0</span></button>
-    <button role="tab" data-tab="vorzeige" aria-selected="false">6 Vorzeigeseite</button>
+    <button role="tab" data-tab="waerme" aria-selected="false">2 Wärmeschutz</button>
+    <button role="tab" data-tab="bauteile" aria-selected="false">3 Bauteile <span class="zaehler" id="z-bauteile">0</span></button>
+    <button role="tab" data-tab="normwerte" aria-selected="false">4 Normwerte</button>
+    <button role="tab" data-tab="raum" aria-selected="false">5 Raum eingeben</button>
+    <button role="tab" data-tab="tabelle" aria-selected="false">6 Raumtabelle <span class="zaehler" id="z-raeume">0</span></button>
+    <button role="tab" data-tab="vorzeige" aria-selected="false">7 Vorzeigeseite</button>
   </nav>
 </header>
 <main>
   <section id="tab-projekt"></section>
+  <section id="tab-waerme" hidden></section>
   <section id="tab-bauteile" hidden></section>
   <section id="tab-normwerte" hidden></section>
   <section id="tab-raum" hidden></section>
@@ -42,6 +44,9 @@
 <div id="toast" role="status" aria-live="polite"></div>
 <script>
 /*VENDOR*/
+</script>
+<script>
+/*WS*/
 </script>
 <script>
 /*CALC*/

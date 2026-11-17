@@ -7,7 +7,7 @@ Die App ist eine einzige Datei, `index.html`. Sie läuft offline und speichert i
 ## Grundregel: keine Annahmen
 
 - Die App enthält keine Normwerte. Alle Felder starten leer.
-- Jeder Wert ist entweder eine Eingabe, ein U-Wert aus der Wärmeschutz-App oder ein Normwert aus den Tabellen im Tab „3 Normwerte“, mit Quelle und Haken „geprüft“.
+- Jeder Wert ist entweder eine Eingabe, ein U-Wert aus der Wärmeschutz-App oder ein Normwert aus den Tabellen im Tab „4 Normwerte“, mit Quelle und Haken „geprüft“.
 - Wenn etwas fehlt oder nicht geprüft ist, wird das Feld rot und der Raum „unvollständig“. Er bekommt dann kein Ergebnis, sondern eine Liste der fehlenden Angaben.
 
 ## Aufbau
@@ -35,4 +35,4 @@ node tests.js
 In der Wärmeschutz-App den Knopf „An Heizlast-App übergeben“ drücken. Das Bauteil landet dann auf zwei Wegen bei der Heizlast-App:
 
 - im gemeinsamen localStorage-Schlüssel `fh21.bauteile`; das geht nur, wenn beide Apps unter derselben Adresse laufen,
-- als JSON-Datei (`format: "fh21.bauteile"`), die man im Tab „2 Bauteile“ importiert.
+- als JSON-Datei (`format: "fh21.bauteile"`), die man im Tab „3 Bauteile“ importiert.

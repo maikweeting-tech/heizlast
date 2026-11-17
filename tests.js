@@ -87,6 +87,12 @@ pruefe('Import: U mit Dezimalkomma', b.U, '0,226');
 pruefe('Import: Herkunft', b.herkunft, 'waermeschutz');
 pruefe('Import: Quelle nennt Bauteil', b.quelle.includes('AW 1'), true);
 pruefe('Import: ΔU_WB bleibt leer', b.dUWB, '');
+const b2 = C.bauteilAusWaermeschutz({ name: 'DA', U: 0.2, ungeprueft: ['Zellulose'] });
+pruefe('Import: ungeprüfte Schichten übernommen', b2.ungeprueft.join() + '|' + b2.schichtenGeprueft, 'Zellulose|false');
+const P9 = testprojekt(); const bt9 = Object.assign(P9.bauteile[0], { herkunft: 'waermeschutz', ungeprueft: ['Zellulose'], schichtenGeprueft: false });
+pruefe('ungeprüfte Schichten → Raum unvollständig', C.rechneRaum(P9.raeume[0], P9).fehlt.some(x => x.pfad === `bt.${bt9.id}.schichtenGeprueft`), true);
+bt9.schichtenGeprueft = true;
+pruefe('Schichtwerte abgehakt → Raum vollständig', C.rechneRaum(P9.raeume[0], P9).vollstaendig, true);
 pruefe('Import: ungültiges Bauteil abgelehnt', C.bauteilAusWaermeschutz({ name: 'x' }), null);
 
 // ── Sonderfälle ────────────────────────────────────────────────────────────

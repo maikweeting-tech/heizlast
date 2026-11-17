@@ -218,6 +218,8 @@ function rechneRaum(raum, P) {
       U = p.ein(bt.U, `bt.${bt.id}.U`, `Bauteil „${nameOd(bt.name, '?')}“: U`);
       dU = p.ein(bt.dUWB, `bt.${bt.id}.dUWB`, `Bauteil „${nameOd(bt.name, '?')}“: ΔU_WB`);
       p.bed(nameOd(bt.quelle, ''), `bt.${bt.id}.quelle`, `Bauteil „${nameOd(bt.name, '?')}“: Quelle des U-Werts fehlt`);
+      if (Array.isArray(bt.ungeprueft) && bt.ungeprueft.length)
+        p.bed(bt.schichtenGeprueft, `bt.${bt.id}.schichtenGeprueft`, `Bauteil „${nameOd(bt.name, '?')}“: Schichtwerte ohne Quelle (${bt.ungeprueft.join(', ')}) – prüfen und abhaken`);
     }
     const Uc = U + dU;
     const Ab = p.ein(fl.Ab, fp + '.Ab', `${nrT}: Fläche brutto`);
@@ -337,7 +339,9 @@ const FH21_BAUTEILE_KEY = 'fh21.bauteile';
 function bauteilAusWaermeschutz(b) {
   if (!b || typeof b !== 'object' || !b.name || !ok(num(b.U))) return null;
   return { id: neueId('bt'), name: String(b.name), art: String(b.art || ''), U: String(b.U).replace('.', ','), dUWB: '',
-           quelle: String(b.quelle || `Wärmeschutz-App, Bauteil „${b.name}“`), herkunft: 'waermeschutz', wsId: b.id || '', dUWBQuelle: '' };
+           quelle: String(b.quelle || `Wärmeschutz-App, Bauteil „${b.name}“`), herkunft: 'waermeschutz', wsId: b.id || '', dUWBQuelle: '',
+           // Schichten ohne belegte Quelle (λ „ungeprüft“, eigene Eingabe, Luftschicht-Tabelle) → Haken nötig
+           ungeprueft: Array.isArray(b.ungeprueft) ? b.ungeprueft.map(String) : [], schichtenGeprueft: false };
 }
 function leseBauteilDatei(obj) {
   if (obj && obj.format === 'fh21.bauteile' && Array.isArray(obj.bauteile)) return obj.bauteile;

@@ -16,6 +16,8 @@ const BEGRIFFE = {
   Uc: { z: 'U_c', n: 'korrigierter U-Wert', e: 'W/(m²·K)', t: 'U-Wert einschließlich Wärmebrückenzuschlag: U_c = U + ΔU_WB. Mit diesem Wert rechnet die App die Transmission.' },
   Uequiv: { z: 'U_equiv', n: 'äquivalenter U-Wert gegen Erdreich', e: 'W/(m²·K)', t: 'Ersatz-U-Wert für Bauteile gegen Erdreich (Bodenplatte, Kellerwand). Er berücksichtigt den Wärmeweg durch das Erdreich und hängt vom Bauteil-U-Wert, vom charakteristischen Maß B′ der Bodenplatte und von der Tiefe z ab. Nur bei der Variante „Norm“ einzugeben.' },
   bauteilart: { z: '', n: 'Bauteilart', e: '', t: 'Art des Bauteils (Außenwand, Fenster, Dach …). Dient zur Ordnung im Katalog und auf der Vorzeigeseite; rechnerisch ohne Einfluss.' },
+  schichtwerte: { z: 'λ, R', n: 'Schichtwerte geprüft', e: '', t: 'Erscheint, wenn ein Bauteil aus der Wärmeschutz-App Schichten ohne belegte Quelle enthält: λ-Werte, die dort als „ungeprüft“ markiert sind, eigene Eingaben ohne Quelle oder Luftschichten (R aus Tabelle). Erst wenn du diese Werte mit der Tabelle verglichen und den Haken gesetzt hast, rechnet die App mit dem Bauteil.' },
+  waermeschutz: { z: 'U', n: 'Tab Wärmeschutz', e: '', t: 'Die komplette Wärmeschutz-App: Schichtaufbau mit λ und d, U-Wert nach DIN EN ISO 6946, Temperaturverlauf, Mindestwärmeschutz, Tauwasser nach Glaser und GModG-Prüfung. „An Heizlast-App übergeben“ legt das Bauteil direkt im Bauteilkatalog ab. Die eigenständige Wärmeschutz-App gibt es weiterhin.' },
   herkunft: { z: '', n: 'Herkunft', e: '', t: '„Wärmeschutz-App“: U-Wert aus dem Bauteilaufbau übernommen, schreibgeschützt. „manuell“: U-Wert von Hand eingetragen – dann ist eine Quelle Pflicht.' },
   // Geometrie
   A: { z: 'A', n: 'Grundfläche des Raums', e: 'm²', t: 'Fußbodenfläche des Raums (Innenmaße). Bezugsgröße für die spezifische Heizlast φ und für das Raumvolumen.' },
@@ -55,8 +57,8 @@ const BEGRIFFE = {
   PhiWE: { z: 'Φ_WE', n: 'Leistung des Wärmeerzeugers', e: 'kW', t: 'Nennwärmeleistung des Wärmeerzeugers (Wärmepumpe, Kessel) bei Auslegungsbedingungen, aus Planung oder Herstellerangabe.' },
   eta_nw: { z: 'η', n: 'Ausnutzungsgrad (Nachweis)', e: '–', t: 'η = E_d / R_d = Σ Φ_HL / Φ_WE. Der Nachweis ist erfüllt, wenn η ≤ 1,0 – der Wärmeerzeuger also mindestens so viel leistet wie gebraucht wird.' },
   // Organisation
-  raumart: { z: '', n: 'Raumart', e: '', t: 'Nutzung des Raums (z. B. Gruppenraum, WC, Flur). Jede Raumart hat in der Normwert-Tabelle ihre θ_int und ihren Mindestluftwechsel. Raumarten legst du im Tab „3 Normwerte“ an.' },
-  standort: { z: '', n: 'Standort', e: '', t: 'Ort des Gebäudes. Für jeden Standort trägst du im Tab „3 Normwerte“ θ_e und θ_m,e aus der DIN/TS 12831-1 ein (nach Postleitzahl).' },
+  raumart: { z: '', n: 'Raumart', e: '', t: 'Nutzung des Raums (z. B. Gruppenraum, WC, Flur). Jede Raumart hat in der Normwert-Tabelle ihre θ_int und ihren Mindestluftwechsel. Raumarten legst du im Tab „4 Normwerte“ an.' },
+  standort: { z: '', n: 'Standort', e: '', t: 'Ort des Gebäudes. Für jeden Standort trägst du im Tab „4 Normwerte“ θ_e und θ_m,e aus der DIN/TS 12831-1 ein (nach Postleitzahl).' },
   quelle: { z: '', n: 'Quelle', e: '', t: 'Wo der Wert steht: Norm mit Ausgabe, Tabelle und Seite (z. B. „DIN/TS 12831-1:2020-04, Tab. …, S. …“). Ohne Quelle rechnet die App nicht.' },
   geprueft: { z: '', n: 'geprüft', e: '', t: 'Haken erst setzen, wenn du den Wert mit der Norm verglichen hast. Nur geprüfte Normwerte gehen in die Rechnung ein.' },
   klasse: { z: '', n: 'Klasse / Bedingung', e: '', t: 'Wofür der Wert gilt, so wie es in der Norm-Tabelle steht (z. B. Abschirmung und Anzahl der Außenflächen mit Öffnungen bei e oder Höhenbereich bei ε).' },

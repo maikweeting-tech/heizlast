@@ -79,6 +79,7 @@ function zeigeTab(t) {
 }
 function render() {
   G = rechneGebaeude(S); RE = rechneRaum(S.entwurf, S);
+  if (tab === 'waerme') { rWaerme(); $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length; return; }
   const f = { projekt: rProjekt, bauteile: rBauteile, normwerte: rNormwerte, raum: rRaum, tabelle: rTabelle, vorzeige: rVorzeige }[tab];
   $('tab-' + tab).innerHTML = f();
   $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length;
@@ -109,7 +110,7 @@ function rProjekt() {
     ${st ? `<div class="tabwrap"><table class="tab"><tr><th>Größe</th><th class="zahl">Wert</th><th>Quelle</th><th>Status</th></tr>
       <tr><td>Norm-Außentemperatur θ<sub>e</sub> ${info('theta_e')}</td><td class="zahl">${nwText(st.te, 1, '°C')}</td><td>${esc(st.te.quelle)}</td><td>${badge(st.te)}</td></tr>
       <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub> ${info('theta_me')}</td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
-      : '<p class="hinweis">Standorte legst du im Tab „3 Normwerte“ an.</p>'}
+      : '<p class="hinweis">Standorte legst du im Tab „4 Normwerte“ an.</p>'}
   </div>
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
     <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub> ' + info('PhiWE'), 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis ${info('eta_nw')}</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
@@ -171,7 +172,36 @@ function nachweisText() {
   return `η = ${W(n.Ed / 1000, 2)} / ${W(n.Rd / 1000, 2)} = ${W(n.eta, 3)} ${n.erfuellt ? '≤' : '>'} 1,0 → ${n.erfuellt ? 'erfüllt' : 'NICHT erfüllt'}`;
 }
 
-// ── 2 Bauteile ────────────────────────────────────────────────────────────
+// ── 2 Wärmeschutz (komplette Wärmeschutz-App, eingebettet) ────────────────
+// Der Rahmen wird nur einmal angelegt und bleibt beim Tabwechsel erhalten.
+function rWaerme() {
+  const sec = $('tab-waerme');
+  if ($('ws-rahmen')) return;
+  sec.innerHTML = `<div class="karte ws-kopf"><p class="hinweis">Komplette Wärmeschutz-App ${info('waermeschutz')} – Bauteil aufbauen, berechnen und mit „An Heizlast-App übergeben“ direkt in den Bauteilkatalog legen.</p>
+    <span class="hinweis klein">${S.bauteile.length} Bauteil(e) im Katalog</span></div>
+    <iframe id="ws-rahmen" title="Wärmeschutz-Rechner" loading="eager"></iframe>`;
+  const f = $('ws-rahmen');
+  f.srcdoc = typeof WS_HTML === 'string' ? WS_HTML : '<p>Wärmeschutz-App nicht eingebaut.</p>';
+  f.addEventListener('load', () => {
+    try {
+      const d = f.contentDocument;
+      const hoehe = () => { f.style.height = Math.max(600, d.documentElement.scrollHeight + 4) + 'px'; };
+      hoehe();
+      new ResizeObserver(hoehe).observe(d.body);
+    } catch (e) { f.style.height = '1800px'; }
+  });
+}
+window.addEventListener('message', e => {
+  const f = $('ws-rahmen');
+  if (!f || e.source !== f.contentWindow || !e.data || typeof e.data !== 'object') return;
+  if (e.data.typ === 'fh21.toast') toast(String(e.data.text || ''));
+  if (e.data.typ === 'fh21.bauteil') {
+    uebernimmBauteile([e.data.bauteil], true);
+    const k = document.querySelector('#tab-waerme .ws-kopf .klein'); if (k) k.textContent = `${S.bauteile.length} Bauteil(e) im Katalog`;
+  }
+});
+
+// ── 3 Bauteile ────────────────────────────────────────────────────────────
 function rBauteile() {
   const zeilen = S.bauteile.map(b => {
     const ws = b.herkunft === 'waermeschutz';
@@ -185,13 +215,14 @@ function rBauteile() {
       <td class="zahl" data-o="uc:${b.id}">${ucText(b)}</td>
       <td>${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</td>
       <td>${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="Quelle ΔU_WB (optional)"')}</td>
-      <td>${ws ? '<span class="status ok">Wärmeschutz-App</span>' : '<span class="status pr">manuell</span>'}</td>
+      <td>${ws ? '<span class="status ok">Wärmeschutz-App</span>' : '<span class="status pr">manuell</span>'}${ws && (b.ungeprueft || []).length ? `<div class="klein" style="margin-top:4px;white-space:normal;min-width:180px">ohne Quelle: ${esc(b.ungeprueft.join(', '))}<br><label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}</td>
       <td class="no-print"><button class="btn-icon" data-a="bt-weg" data-id="${b.id}" title="Bauteil löschen">×</button></td></tr>`;
   }).join('');
   return `<div class="karte"><h2>Bauteilkatalog</h2>
     <p class="hinweis">U-Werte kommen aus der Wärmeschutz-App (Name als Quelle) oder werden von Hand mit Quelle eingetragen. ΔU<sub>WB</sub> ist immer eine Eingabe; U<sub>c</sub> = U + ΔU<sub>WB</sub> rechnet die App.</p>
     <div class="knoepfe" style="margin-bottom:12px">
-      <button class="btn btn-klein btn-primaer" data-a="ws-import">Aus Wärmeschutz-App übernehmen</button>
+      <button class="btn btn-klein btn-primaer" data-a="zu-waerme">Bauteil im Tab „Wärmeschutz“ berechnen</button>
+      <button class="btn btn-klein" data-a="ws-import">Aus eigenständiger Wärmeschutz-App übernehmen</button>
       <button class="btn btn-klein" data-a="json-import">JSON-Datei importieren</button>
       <button class="btn btn-klein" data-a="bt-neu">+ Bauteil manuell</button>
     </div>
@@ -278,7 +309,7 @@ function rRaum() {
     <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C${norm ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
     ${fl || '<tr><td colspan="10" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>
-    ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Bauteile“ anlegen.</p>'}
+    ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „3 Bauteile“ anlegen.</p>'}
   </div>
   <div class="karte"><h2>Lüftung</h2>
     <div class="reihe drei">${feld('Zuluftvolumenstrom V̇<sub>su</sub> ' + info('Vsu'), lu + '.Vsu', 'raum.lu.Vsu', 'm³/h', 'z')}
@@ -326,7 +357,7 @@ function fehlHtml(R) {
 
 // ── 5 Raumtabelle ─────────────────────────────────────────────────────────
 function rTabelle() {
-  if (!S.raeume.length) return '<div class="karte"><h2>Raumtabelle</h2><p class="hinweis">Noch keine Räume. Im Tab „4 Raum eingeben“ einen Raum anlegen und „Raum übernehmen“ drücken.</p></div>';
+  if (!S.raeume.length) return '<div class="karte"><h2>Raumtabelle</h2><p class="hinweis">Noch keine Räume. Im Tab „5 Raum eingeben“ einen Raum anlegen und „Raum übernehmen“ drücken.</p></div>';
   const z = G.raeume.map((R, i) => {
     const r = S.raeume[i], o = offen.has(r.id), v = R.vollstaendig;
     return `<tr class="${v ? '' : 'unvoll'}"><td><button class="btn-icon" style="color:var(--text)" data-a="auf" data-id="${r.id}" aria-expanded="${o}" title="Rechenweg">${o ? '▾' : '▸'}</button></td>
@@ -568,6 +599,7 @@ const AKTION = {
   'raum-weg'(d) { const r = S.raeume.find(x => x.id === d.id); if (!confirm(`Raum ${r.nr} „${r.name}“ löschen?`)) return false; S.raeume = S.raeume.filter(x => x.id !== d.id); if (S.entwurfVon === d.id) S.entwurfVon = ''; },
   'auf'(d) { offen.has(d.id) ? offen.delete(d.id) : offen.add(d.id); },
   'ws-import'() { wsDialog(); return false; },
+  'zu-waerme'() { zeigeTab('waerme'); return false; },
   'json-import'() { $('datei').value = ''; $('datei').click(); return false; },
   'json-export'() { const n = (S.projekt.projekt || 'projekt').replace(/[^\wäöüÄÖÜß-]+/g, '_'); laden_(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }), `heizlast_${n}.json`); return false; },
   'xlsx'() { exportXlsx(); return false; },
@@ -582,15 +614,19 @@ function laden_(blob, name) {
 }
 
 // Übernahme aus der Wärmeschutz-App
-function uebernimmBauteile(liste) {
-  let neu = 0, akt = 0;
+function uebernimmBauteile(liste, ausRahmen = false) {
+  let neu = 0, akt = 0, ungeprueft = 0;
   liste.forEach(x => {
     const b = bauteilAusWaermeschutz(x); if (!b) return;
+    if (b.ungeprueft.length) ungeprueft++;
     const alt = S.bauteile.find(y => y.herkunft === 'waermeschutz' && y.name === b.name);
-    if (alt) { alt.U = b.U; alt.quelle = b.quelle; alt.art = b.art; alt.wsId = b.wsId; akt++; } else { S.bauteile.push(b); neu++; }
+    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false }); akt++; }
+    else { S.bauteile.push(b); neu++; }
   });
-  speichern(); render();
-  toast(`${neu} Bauteil(e) übernommen${akt ? `, ${akt} aktualisiert` : ''}. ΔU_WB noch eintragen.`);
+  speichern();
+  if (!ausRahmen) render(); else { $('z-bauteile').textContent = S.bauteile.length; }
+  const was = neu + akt === 1 ? `„${liste[0].name}“ ${neu ? 'in den Katalog übernommen' : 'im Katalog aktualisiert'}` : `${neu} Bauteil(e) übernommen${akt ? `, ${akt} aktualisiert` : ''}`;
+  toast(`${was}. ΔU_WB im Tab „3 Bauteile“ eintragen${ungeprueft ? ' und Schichtwerte prüfen' : ''}.`);
 }
 function wsDialog() {
   let liste = [];
@@ -747,6 +783,6 @@ function start() {
   $('datei').addEventListener('change', e => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => dateiGelesen(rd.result); rd.readAsText(f); });
   window.addEventListener('beforeprint', () => { if (tab !== 'vorzeige') zeigeTab('vorzeige'); druckstil(); });
   const h = location.hash.slice(1);
-  zeigeTab(['projekt', 'bauteile', 'normwerte', 'raum', 'tabelle', 'vorzeige'].includes(h) ? h : 'projekt');
+  zeigeTab(['projekt', 'waerme', 'bauteile', 'normwerte', 'raum', 'tabelle', 'vorzeige'].includes(h) ? h : 'projekt');
 }
 document.addEventListener('DOMContentLoaded', start);
