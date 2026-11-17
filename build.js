@@ -14,8 +14,9 @@ let wsHtml = ws('index.html')
     `@media not all and (prefers-color-scheme: dark) { :root { --rost: #C0392B; --rost-hell: #f9e3e0; --akzent: #C0392B; --bg: #eef0f2; } }\n</style>`)
   .replace('<script src="data.js"></script>', () => `<script>\n${ws('data.js')}\n</script>`)
   .replace('<script src="calc.js"></script>', () => `<script>\n${ws('calc.js')}\n</script>`)
+  .replace('<script src="begriffe.js"></script>', () => `<script>\n${ws('begriffe.js')}\n</script>`)
   .replace('<script src="app.js"></script>', () => `<script>\n${ws('app.js')}\n</script>`);
-if (/src="(data|calc|app)\.js"|href="app\.css"/.test(wsHtml)) throw new Error('Wärmeschutz-App: Datei nicht eingebettet');
+if (/<script src=|<link rel="stylesheet" href=/.test(wsHtml)) throw new Error('Wärmeschutz-App: Datei nicht eingebettet');
 const wsJs = 'const WS_HTML = ' + JSON.stringify(wsHtml).replace(/<\/script/gi, '<\\/script') + ';';
 const teile = {
   '/*CSS*/': lies('src/app.css'),

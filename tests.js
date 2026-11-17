@@ -129,6 +129,22 @@ pruefe('keine Teilfläche → Fehlliste', C.rechneRaum(r8, P8).fehlt.some(x => x
 pruefe('Zahl mit Komma', C.num('1,45'), 1.45);
 pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
 
+// ── Gebaute Datei: Syntax aller Skripte, auch der eingebetteten Wärmeschutz-App ──
+{
+  const fs = require('fs'), vm = require('vm'), path = require('path');
+  const html = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+  const skripte = h => [...h.matchAll(/<script>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  const syntax = (code, name) => { try { new vm.Script(code, { filename: name }); return ''; } catch (e) { return name + ': ' + e.message; } };
+  const aussen = skripte(html);
+  pruefe('index.html: 4 Skriptblöcke (Bibliotheken, Wärmeschutz, Rechenkern, Oberfläche)', aussen.length, 4);
+  pruefe('index.html: Syntax aller Skripte', aussen.map((c, i) => syntax(c, 'Skript ' + (i + 1))).filter(Boolean).join(' | '), '');
+  const ctx = {}; vm.createContext(ctx); vm.runInContext(aussen.find(c => c.includes('const WS_HTML')).replace('const WS_HTML', 'globalThis.WS_HTML'), ctx);
+  const innen = skripte(ctx.WS_HTML);
+  pruefe('Wärmeschutz eingebettet: 4 Skripte (data, calc, begriffe, app)', innen.length, 4);
+  pruefe('Wärmeschutz eingebettet: Syntax', innen.map((c, i) => syntax(c, 'WS-Skript ' + (i + 1))).filter(Boolean).join(' | '), '');
+  pruefe('Wärmeschutz eingebettet: keine externen Dateien', /<script src=|<link rel="stylesheet" href=/.test(ctx.WS_HTML), false);
+}
+
 // ── Testfall 4: Einheitenkontrolle ─────────────────────────────────────────
 C.einheitenPruefung().forEach(s => pruefe('Einheit: ' + s.schritt + ' → ' + s.soll, s.ok, true));
 
