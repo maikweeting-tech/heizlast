@@ -109,3 +109,5 @@ Ich habe die sichtbaren Texte in App und Vorzeigeseite durchgesehen und auf Ersa
 - „An Heizlast-App übergeben“ legt das Bauteil direkt im Bauteilkatalog ab, ohne Download. Geprüft mit dem Beispiel „Außenwand KS + WDVS“: U = 0,234 W/(m²·K).
 - Schichten ohne belegte Quelle meldet die App beim Bauteil: λ „ungeprüft“, eigene Eingabe ohne Quelle oder Luftschicht. Das Bauteil braucht dann den Haken „Schichtwerte geprüft“, sonst ist der Raum unvollständig. Geprüft mit Zellulose-Einblasdämmung 040 (in der Baustoffliste als ungeprüft markiert).
 - Tests: Heizlast 69/69, Wärmeschutz 117/117.
+- Im Tab „Wärmeschutz“ starten die Randbedingungen leer: Bauteil, Raumnutzung, Wärmestromrichtung, θ_i, θ_e, DIN-4108-2-Ausgabe, GModG-Anforderung und Maßnahme. Auch „Beispiel laden“ setzt dort keine Standardwerte. „Berechnen“ zählt die fehlenden Angaben auf und markiert sie rot. Geprüft: 7 Felder rot und leer, nach dem Ausfüllen U = 0,23 W/(m²·K). Die eigenständige Wärmeschutz-App ist unverändert (20 °C / −5 °C vorbelegt).
+- Weiterhin mit 0 vorbelegt sind die optionalen Korrekturen ΔU_r (Umkehrdach) und die Luftspalt-Stufe, beide mit der Bedeutung „keine Korrektur“.
