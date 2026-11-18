@@ -4,6 +4,15 @@ Raumweise Norm-Heizlast nach DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04. 
 
 Die App ist eine einzige Datei, `index.html`. Sie läuft offline und speichert im Browser (localStorage).
 
+## Rechenverfahren
+
+Im Tab „1 Projekt“ wird eines gewählt:
+
+- **DIN EN 12831:2003 mit Beiblatt 1**, nach Laasch, T.; Laasch, E.: *Haustechnik*, 13. Aufl., Springer Vieweg 2013, Kap. 8.3. Rechnet mit Mindestluftwechsel, Abluftüberschuss, U_equiv und f_RH. Referenzfall: Küche S. 558 (`pruefung/referenz_laasch_kueche.json`).
+- **Excel-Blatt „Heizlast“**: Testfall Kita Wesel, 18,29 kW (`pruefung/testprojekt_kita_eg.json`).
+
+Nicht abgebildet ist das allgemeine Lüftungsverfahren der aktuellen DIN EN 12831-1:2017.
+
 ## Grundregel: keine Annahmen
 
 - Die App enthält keine Normwerte. Alle Felder starten leer.

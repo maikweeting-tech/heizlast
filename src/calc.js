@@ -1,61 +1,77 @@
 /* Heizlast-App – Rechenkern (raumweise Norm-Heizlast).
    Enthält KEINE Zahlenwerte für Normgrößen. Alle Werte kommen aus Nutzereingaben,
    aus der Wärmeschutz-App (Bauteil-U) oder aus den vom Nutzer befüllten Normwert-Tabellen.
-   Formeln sind hier fest hinterlegt und werden in der App angezeigt (FORMELN). */
+   Formeln sind hier fest hinterlegt und werden in der App angezeigt (formeln()). */
 'use strict';
+
+// ── Quellen ───────────────────────────────────────────────────────────────
+const QUELLE_LAASCH = 'Laasch, T.; Laasch, E.: Haustechnik – Grundlagen, Planung, Ausführung. 13. Aufl., Springer Vieweg, Wiesbaden 2013, ISBN 978-3-8348-1260-5, Kap. 8.3 „Heizlast“, S. 535–560';
+const QUELLE_EXCEL = 'TGA_Kita_Wesel_Berechnung_1.xlsx, Blatt „Heizlast“ und „Folienwerte“ (F2_Rechenweg)';
 
 // ── Normstand (online geprüft am 17.11.2026) ─────────────────────────────
 const NORMSTAND = [
   { norm: 'DIN EN 12831-1:2017-09', status: 'pruefen',
-    text: 'Basisnorm. DIN Media: Produktseite am 17.11.2026 nicht erreichbar (404), Status dort nicht bestätigt. Laut Oschatz (ITG Dresden, 2020) zusammen mit DIN/TS 12831-1 die geltende Regel der Technik; ersetzt DIN EN 12831:2003-08.' },
+    text: 'Aktuelle Basisnorm. DIN Media: Produktseite am 17.11.2026 nicht erreichbar (404), Status dort nicht bestätigt. Laut Oschatz (ITG Dresden, 2020) zusammen mit DIN/TS 12831-1 die geltende Regel der Technik; ersetzt DIN EN 12831:2003-08. Ihr allgemeines Lüftungsverfahren ist in dieser App NICHT abgebildet.' },
   { norm: 'DIN/TS 12831-1:2020-04', status: 'geprueft',
-    text: 'DIN Media (17.11.2026): Ausgabe 2020-04, Vornorm, ersetzt DIN EN 12831 Beiblatt 1 bis 3; kein Nachfolgedokument genannt.' }
+    text: 'DIN Media (17.11.2026): Ausgabe 2020-04, Vornorm, ersetzt DIN EN 12831 Beiblatt 1 bis 3; kein Nachfolgedokument genannt.' },
+  { norm: 'DIN EN 12831:2003-08 mit Beiblatt 1', status: 'ersetzt',
+    text: 'Rechenweg dieser App (Verfahren „DIN EN 12831:2003“), belegt durch ' + QUELLE_LAASCH + '. Diese Ausgabe ist durch DIN EN 12831-1:2017 und DIN/TS 12831-1:2020 ersetzt.' }
 ];
 
-// ── Formeln (Anzeige) ─────────────────────────────────────────────────────
-const FORMELN = [
-  { id: 'dth',  f: 'Δθ = θ_int − θ_e', e: 'K' },
-  { id: 'Uc',   f: 'U_c = U + ΔU_WB', e: 'W/(m²·K)' },
-  { id: 'An',   f: 'A_k = A_brutto − A_Öffnungen', e: 'm²' },
-  { id: 'PhiT', f: 'Φ_T,k = A_k · U_c,k · f_k · Δθ', e: 'W' },
-  { id: 'fa',   f: 'außen: f = 1', e: '–' },
-  { id: 'fg',   f: 'Erdreich: f = f_g1 · f_g2 · G_w  mit  f_g2 = (θ_int − θ_m,e) / (θ_int − θ_e)', e: '–' },
-  { id: 'fu',   f: 'unbeheizt: f = b_u = (θ_int − θ_u) / (θ_int − θ_e)', e: '–' },
-  { id: 'fj',   f: 'beheizter Nachbarraum: f = (θ_int − θ_j) / (θ_int − θ_e)  (Φ < 0 = Gewinn)', e: '–' },
-  { id: 'A',    f: 'A = L · B  bzw.  A = Σ (± L_i · B_i) aus Teilflächen', e: 'm²' },
-  { id: 'Vi',   f: 'V_i = A · h_i', e: 'm³' },
-  { id: 'Vinf', f: 'V̇_inf = 2 · V_i · n_50 · e · ε', e: 'm³/h' },
-  { id: 'tsu',  f: 'θ_su = θ_e + η_WRG · (θ_int − θ_e)', e: '°C' },
-  { id: 'PhiV', f: 'Φ_V = ρ·c_p · [V̇_inf · Δθ + V̇_su · (θ_int − θ_su)]', e: 'W' },
-  { id: 'HL',   f: 'Φ_HL = Σ Φ_T,k + Φ_V + Φ_RH', e: 'W' },
-  { id: 'phi',  f: 'φ = Φ_HL / A', e: 'W/m²' },
-  { id: 'geb',  f: 'Φ_HL,Geb = Σ Φ_HL (ohne Abminderungen)', e: 'W' },
-  { id: 'eta',  f: 'η = Σ Φ_HL / Φ_WE ≤ 1,0', e: '–' }
-];
-
-// Abweichungen Excel-Ansatz ↔ DIN EN 12831-1:2017 (zur Wahl gestellt)
-const VARIANTEN = {
-  erdreich: {
-    titel: 'Erdreich',
-    excel: 'Excel-Ansatz: U_c = U + ΔU_WB des Bauteils (Blatt „Heizlast“, Zeile 23).',
-    norm: 'DIN EN 12831-1: äquivalenter U-Wert U_equiv (abhängig von B′ und z), ohne ΔU_WB; Eingabe je Fläche mit Quelle.',
-    hinweis: 'Formelstruktur f_g1 · f_g2 · A · U_equiv · G_w nicht gegen den Normtext geprüft (Normtext nicht frei zugänglich) – prüfen.'
+// ── Rechenverfahren (eines muss im Tab Projekt gewählt werden) ────────────
+const VERFAHREN = {
+  din2003: {
+    titel: 'DIN EN 12831:2003 mit Beiblatt 1 (nach Laasch, Haustechnik)',
+    kurz: 'DIN EN 12831:2003',
+    text: 'Transmission: außen und unbeheizt mit U_c = U + ΔU_WB, beheizter Nachbarraum mit U (ohne ΔU_WB), Erdreich mit U_equiv (Laasch S. 555). Lüftung: V̇_therm = max(V̇_inf + V̇_su · f_V,su + V̇_mech,inf ; V̇_min) mit V̇_mech,inf = V̇_ex − V̇_su (S. 556–559). Aufheizzuschlag Φ_RH = A_R · f_RH (S. 559).',
+    quelle: QUELLE_LAASCH
   },
-  vmin: {
-    titel: 'Mindestluftvolumenstrom',
-    excel: 'Excel-Ansatz: keine Prüfung des Mindestluftwechsels.',
-    norm: 'DIN EN 12831-1:2017 Gl. (17): Außenluft = max(V̇_inf ; V̇_min − V̇_su) mit V̇_min = n_min · V_i.',
-    hinweis: 'Symbole von Gl. (17) online geprüft (q_v,env, q_v,min, q_v,techn, q_v,su, θ_su); der Formeltext liegt nur als Bild vor – prüfen.'
-  },
-  infiltration: {
-    titel: 'Infiltration',
-    excel: 'Excel-Ansatz: V̇_inf = 2 · V_i · n_50 · e · ε (Struktur aus DIN EN 12831:2003).',
-    norm: 'DIN EN 12831-1:2017 rechnet zonenweise über q_env,50, Volumenstromfaktor (Tab. B.8) und Orientierungsfaktor (B.2.14), Gl. (18)–(31). In dieser App nicht hinterlegt, weil der Formeltext online nicht prüfbar war.',
-    hinweis: 'Nur der Excel-Ansatz ist wählbar.'
+  excel: {
+    titel: 'Excel-Blatt „Heizlast“ (Testfall Kita Wesel)',
+    kurz: 'Excel-Ansatz',
+    text: 'Wie das Excel-Blatt: Transmission überall mit U_c = U + ΔU_WB, auch gegen Erdreich und beheizte Nachbarräume; Lüftung Φ_V = ρ·c_p · [V̇_inf · Δθ + V̇_su · (θ_int − θ_su)] ohne Mindestluftwechsel und ohne Abluftüberschuss. Abweichungen von DIN EN 12831:2003 siehe Laasch S. 555–559.',
+    quelle: QUELLE_EXCEL
   }
 };
+const HINWEIS_2017 = 'DIN EN 12831-1:2017 rechnet die Lüftung zonenweise über q_env,50, Volumenstromfaktor (Tab. B.8) und Orientierungsfaktor (B.2.14), Gl. (18)–(31). Dieses allgemeine Verfahren ist nicht hinterlegt, weil der Normtext nicht vorlag. Für Gebäude mit Lüftungsanlage und WRG verlangt die aktuelle Norm dieses Verfahren.';
 
-const ANGRENZUNG = { aussen: 'außen', erdreich: 'Erdreich', unbeheizt: 'unbeheizt', beheizt: 'beheizter Nachbarraum' };
+// ── Formeln (Anzeige) ─────────────────────────────────────────────────────
+const F_GEMEINSAM = [
+  { f: 'Δθ = θ_int − θ_e', e: 'K' },
+  { f: 'A = L · B  bzw.  A = Σ (± L_i · B_i) aus Teilflächen', e: 'm²' },
+  { f: 'V_i = A · h_i', e: 'm³' },
+  { f: 'U_c = U + ΔU_WB', e: 'W/(m²·K)' },
+  { f: 'A_k = A_brutto − A_Öffnungen', e: 'm²' },
+  { f: 'Φ_T,k = A_k · U_k · f_k · Δθ', e: 'W' },
+  { f: 'außen: f = 1', e: '–' },
+  { f: 'unbeheizt: f = b_u = (θ_int − θ_u) / (θ_int − θ_e)  oder b_u aus Tabelle', e: '–' },
+  { f: 'beheizter Nachbarraum: f = f_ij = (θ_int − θ_j) / (θ_int − θ_e)  (Φ < 0 = Gewinn)', e: '–' },
+  { f: 'Erdreich: f = f_g1 · f_g2 · G_w  mit  f_g2 = (θ_int − θ_m,e) / (θ_int − θ_e)', e: '–' },
+  { f: 'V̇_inf = 2 · V_i · n_50 · e · ε', e: 'm³/h' },
+  { f: 'θ_su = θ_e + η_WRG · (θ_int − θ_e)', e: '°C' }
+];
+const F_EXCEL = [
+  { f: 'U_k = U_c für alle Flächen', e: 'W/(m²·K)' },
+  { f: 'Φ_V = ρ·c_p · [V̇_inf · Δθ + V̇_su · (θ_int − θ_su)]', e: 'W' }
+];
+const F_2003 = [
+  { f: 'U_k = U_c (außen, unbeheizt) · U (beheizt) · U_equiv (Erdreich)', e: 'W/(m²·K)' },
+  { f: 'f_V,su = (θ_int − θ_su) / (θ_int − θ_e)', e: '–' },
+  { f: 'V̇_mech,inf = V̇_ex − V̇_su  (nur Überschuss, sonst 0)', e: 'm³/h' },
+  { f: 'V̇_min = n_min · V_i', e: 'm³/h' },
+  { f: 'V̇_therm = max(V̇_inf + V̇_su · f_V,su + V̇_mech,inf ; V̇_min)', e: 'm³/h' },
+  { f: 'Φ_V = ρ·c_p · V̇_therm · Δθ', e: 'W' }
+];
+const F_ENDE = [
+  { f: 'Φ_RH = Φ_RH (Eingabe)  oder  Φ_RH = A_R · f_RH', e: 'W' },
+  { f: 'Φ_HL = Σ Φ_T,k + Φ_V + Φ_RH', e: 'W' },
+  { f: 'φ = Φ_HL / A', e: 'W/m²' },
+  { f: 'Φ_HL,Geb = Σ Φ_HL (ohne Abminderungen)', e: 'W' },
+  { f: 'η = Σ Φ_HL / Φ_WE ≤ 1,0', e: '–' }
+];
+function formeln(verfahren) { return F_GEMEINSAM.concat(verfahren === 'excel' ? F_EXCEL : verfahren === 'din2003' ? F_2003 : [], F_ENDE); }
+
+const ANGRENZUNG = { aussen: 'außen', erdreich: 'Erdreich', unbeheizt: 'unbeheizt (θ_u bekannt)', unbeheiztBu: 'unbeheizt (b_u aus Tabelle)', beheizt: 'beheizter Nachbarraum' };
 
 // ── Zahlen ────────────────────────────────────────────────────────────────
 function num(v) {
@@ -92,15 +108,17 @@ const EINHEITEN_SCHRITTE = [
   { schritt: 'Δθ = θ_int − θ_e', mal: ['K'], soll: 'K' },
   { schritt: 'U_c = U + ΔU_WB', mal: ['W/(m²·K)'], soll: 'W/(m²·K)' },
   { schritt: 'A_k = A_brutto − A_Öffnungen', mal: ['m²'], soll: 'm²' },
-  { schritt: 'f_g2, b_u, f_j = Δθ / Δθ', mal: ['K'], durch: ['K'], soll: '–' },
+  { schritt: 'f_g2, b_u, f_ij, f_V,su = Δθ / Δθ', mal: ['K'], durch: ['K'], soll: '–' },
   { schritt: 'f_g = f_g1 · f_g2 · G_w', mal: ['–', '–', '–'], soll: '–' },
-  { schritt: 'Φ_T,k = A_k · U_c · f · Δθ', mal: ['m²', 'W/(m²·K)', '–', 'K'], soll: 'W' },
+  { schritt: 'Φ_T,k = A_k · U_k · f · Δθ', mal: ['m²', 'W/(m²·K)', '–', 'K'], soll: 'W' },
   { schritt: 'A = Σ (± L_i · B_i)', mal: ['m', 'm'], soll: 'm²' },
   { schritt: 'V_i = A · h_i', mal: ['m²', 'm'], soll: 'm³' },
   { schritt: 'V̇_inf = 2 · V_i · n_50 · e · ε', mal: ['m³', '1/h', '–', '–'], soll: 'm³/h' },
   { schritt: 'V̇_min = n_min · V_i', mal: ['1/h', 'm³'], soll: 'm³/h' },
+  { schritt: 'V̇_therm = V̇_inf + V̇_su · f_V,su + V̇_mech,inf', mal: ['m³/h', '–'], soll: 'm³/h' },
   { schritt: 'θ_su = θ_e + η_WRG · (θ_int − θ_e)', mal: ['–', 'K'], soll: 'K' },
   { schritt: 'Φ_V = ρ·c_p · V̇ · Δθ', mal: ['Wh/(m³·K)', 'm³/h', 'K'], soll: 'W' },
+  { schritt: 'Φ_RH = A_R · f_RH', mal: ['m²', 'W/m²'], soll: 'W' },
   { schritt: 'Φ_HL = Σ Φ_T + Φ_V + Φ_RH', mal: ['W'], soll: 'W' },
   { schritt: 'φ = Φ_HL / A', mal: ['W'], durch: ['m²'], soll: 'W/m²' },
   { schritt: 'η = Σ Φ_HL / Φ_WE', mal: ['W'], durch: ['W'], soll: '–' }
@@ -115,9 +133,9 @@ function neueId(p) { _idz++; return (p || 'x') + Date.now().toString(36) + _idz.
 const leerNW = () => ({ wert: '', quelle: '', geprueft: false });
 function leeresProjekt() {
   return {
-    format: 'fh21.heizlast', version: 1,
+    format: 'fh21.heizlast', version: 2,
     projekt: { projekt: '', bauvorhaben: '', bearbeiter: 'Maik Weeting, Klasse FH 21', datum: '', position: '', beschreibung: '', standortId: '', phiWE: '' },
-    optionen: { erdreich: 'excel', vmin: 'excel', infiltration: 'excel' },
+    optionen: { verfahren: '' },
     normwerte: {
       standorte: [{ id: neueId('st'), name: '', te: leerNW(), tme: leerNW() }],
       raumarten: [{ id: neueId('ra'), name: '', tint: leerNW(), nmin: leerNW() }],
@@ -135,13 +153,15 @@ function leererRaum() {
     id: neueId('r'), nr: '', name: '', geschoss: '', raumartId: '', amodus: 'LB', L: '', B: '', A: '', teilflaechen: [], hi: '',
     flaechen: [],
     lueftung: { Vsu: '', suModus: 'eta', thetaSu: '', eta: '', Vex: '', n50: '', eId: '', epsId: '' },
-    phiRH: ''
+    rhModus: '', phiRH: '', fRH: '', fRHQuelle: ''
   };
 }
 function leereTeilflaeche() { return { id: neueId('tf'), bez: '', L: '', B: '', minus: false }; }
 function leereFlaeche() {
-  return { id: neueId('f'), bauteilId: '', ausrichtung: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '' };
+  return { id: neueId('f'), bauteilId: '', ausrichtung: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '', buQuelle: '' };
 }
+// Aufheizzuschlag-Modus (ältere Projekte: Φ_RH direkt eingetragen)
+const rhModusVon = r => r.rhModus || (r.phiRH !== undefined && String(r.phiRH).trim() !== '' ? 'direkt' : '');
 
 // ── Prüfhelfer ────────────────────────────────────────────────────────────
 function pruefer() {
@@ -166,13 +186,15 @@ const nameOd = (s, ersatz) => (s && String(s).trim()) || ersatz;
 function rechneRaum(raum, P) {
   const p = pruefer();
   const NWt = P.normwerte;
-  const rn = `Raum ${nameOd(raum.nr, '?')}`;
+  const vf = (P.optionen || {}).verfahren;
+  const din = vf === 'din2003';
+  p.bed(VERFAHREN[vf], 'projekt.verfahren', 'Rechenverfahren im Tab „1 Projekt“ wählen');
   p.bed(nameOd(raum.nr, ''), 'raum.nr', 'Nr. fehlt');
   p.bed(nameOd(raum.name, ''), 'raum.name', 'Raumname fehlt');
 
   // Standort
   const st = NWt.standorte.find(s => s.id === P.projekt.standortId);
-  p.bed(st, 'projekt.standortId', 'Standort im Tab „Projekt“ wählen');
+  p.bed(st, 'projekt.standortId', 'Standort im Tab „1 Projekt“ wählen');
   const stn = st ? `Standort „${nameOd(st.name, '?')}“` : 'Standort';
   const te = st ? p.nw(st.te, `nw.st.${st.id}.te`, `θ_e (${stn})`) : NaN;
 
@@ -240,17 +262,25 @@ function rechneRaum(raum, P) {
       f = fg1 * fg2 * Gw;
       fText = 'f_g1 · f_g2 · G_w';
       fWerte = `f_g2 = (${fmtV(tint, 1)} − ${fmtV(tme, 1)}) / ${fmt(dth, 1)} = ${fmt(fg2, 3)};  f = ${fmt(fg1, 2)} · ${fmt(fg2, 3)} · ${fmt(Gw, 2)} = ${fmt(f, 3)}`;
-      if (P.optionen.erdreich === 'norm') {
-        Uk = p.ein(fl.Uequiv, fp + '.Uequiv', `${nrT}: U_equiv (Variante Norm)`);
-        p.bed(nameOd(fl.UequivQuelle, ''), fp + '.UequivQuelle', `${nrT}: Quelle U_equiv fehlt`);
+      if (din) {
+        // Laasch S. 555: H_T = A · f_g1 · f_g2 · G_W · U_equiv (U_equiv aus Tab. 8.53–8.60)
+        Uk = p.ein(fl.Uequiv, fp + '.Uequiv', `${nrT}: U_equiv`);
+        p.bed(nameOd(fl.UequivQuelle, ''), fp + '.UequivQuelle', `${nrT}: Quelle U_equiv fehlt (z. B. Laasch Tab. 8.54)`);
         ukName = 'U_equiv';
       }
     } else if (fl.an === 'unbeheizt' || fl.an === 'beheizt') {
       const sym = fl.an === 'unbeheizt' ? 'θ_u' : 'θ_j';
       const tx = p.ein(fl.thetaX, fp + '.thetaX', `${nrT}: ${sym}`);
       f = (tint - tx) / dth;
-      fText = fl.an === 'unbeheizt' ? 'b_u' : 'f_j';
+      fText = fl.an === 'unbeheizt' ? 'b_u' : 'f_ij';
       fWerte = `${fText} = (${fmtV(tint, 1)} − ${fmtV(tx, 1)}) / ${fmt(dth, 1)} = ${fmt(f, 3)}`;
+      // Laasch S. 555: beheizter Nachbarraum H_T = A · f_ij · U (ohne ΔU_WB)
+      if (din && fl.an === 'beheizt') { Uk = U; ukName = 'U'; }
+    } else if (fl.an === 'unbeheiztBu') {
+      f = p.ein(fl.thetaX, fp + '.thetaX', `${nrT}: b_u aus Tabelle`);
+      p.bed(nameOd(fl.buQuelle, ''), fp + '.buQuelle', `${nrT}: Quelle b_u fehlt (z. B. Laasch Tab. 8.51)`);
+      fText = 'b_u';
+      fWerte = `b_u = ${fmt(f, 2)} (Tabelle: ${fl.buQuelle || '?'})`;
     }
     const phi = An * Uk * f * dth;
     zeilen.push({
@@ -274,49 +304,63 @@ function rechneRaum(raum, P) {
     }
   }
   p.bed(!(ok(Vsu) && Vsu < 0), 'raum.lu.Vsu', 'V̇_su darf nicht negativ sein');
-  const Vex = num(lu.Vex);
+  const Vex = din ? p.ein(lu.Vex, 'raum.lu.Vex', 'V̇_ex (0 eintragen, wenn keine Abluft)') : num(lu.Vex);
+  if (din && ok(Vex)) p.bed(Vex >= 0, 'raum.lu.Vex', 'V̇_ex darf nicht negativ sein');
   const n50 = p.ein(lu.n50, 'raum.lu.n50', 'n_50');
   const eRow = NWt.e.find(x => x.id === lu.eId);
   const epsRow = NWt.eps.find(x => x.id === lu.epsId);
   const eW = eRow ? p.nw(eRow.w, `nw.e.${eRow.id}.w`, `e („${nameOd(eRow.klasse, '?')}“)`) : (p.bed(false, 'raum.lu.eId', 'Abschirmungskoeffizient e wählen'), NaN);
   const epsW = epsRow ? p.nw(epsRow.w, `nw.eps.${epsRow.id}.w`, `ε („${nameOd(epsRow.klasse, '?')}“)`) : (p.bed(false, 'raum.lu.epsId', 'Höhenkorrekturfaktor ε wählen'), NaN);
   const Vinf = 2 * V * n50 * eW * epsW;
-  let Vmin = NaN, nmin = NaN, Vaussen = Vinf, maxText = '';
-  if (P.optionen.vmin === 'norm') {
+  const keineZuluft = ok(Vsu) && Vsu === 0;
+  const fsu = keineZuluft ? 0 : (tint - tsu) / dth;
+  let PhiVinf, PhiVsu, phiV, Vmin = NaN, nmin = NaN, Vmech = NaN, Vroh = NaN, Vtherm = NaN, minMassgebend = false;
+  if (din) {
+    // Laasch S. 556–559
     nmin = ra ? p.nw(ra.nmin, `nw.ra.${ra.id}.nmin`, `n_min (${ran})`) : NaN;
     Vmin = nmin * V;
-    const rest = Vmin - (ok(Vsu) ? Vsu : 0);
-    Vaussen = Math.max(Vinf, rest);
-    maxText = `max(V̇_inf ; V̇_min − V̇_su) = max(${fmt(Vinf, 1)} ; ${fmt(Vmin, 1)} − ${fmt(Vsu, 0)}) = ${fmt(Vaussen, 1)} m³/h`;
+    Vmech = Math.max(Vex - (ok(Vsu) ? Vsu : 0), 0);
+    Vroh = Vinf + (keineZuluft ? 0 : Vsu * fsu) + Vmech;
+    Vtherm = Math.max(Vroh, Vmin);
+    minMassgebend = ok(Vmin) && Vmin > Vroh;
+    phiV = rhocp * Vtherm * dth;
+    PhiVinf = NaN; PhiVsu = NaN;
+  } else {
+    PhiVinf = rhocp * Vinf * dth;
+    PhiVsu = keineZuluft ? 0 : rhocp * Vsu * (tint - tsu);
+    phiV = PhiVinf + PhiVsu;
   }
-  const PhiVinf = rhocp * Vaussen * dth;
-  const PhiVsu = ok(Vsu) && Vsu === 0 ? 0 : rhocp * Vsu * (tint - tsu);
-  const fsu = ok(Vsu) && Vsu === 0 ? 0 : (tint - tsu) / dth;
-  const phiV = PhiVinf + PhiVsu;
 
-  // Aufheizzuschlag nur bei Eingabe
-  let phiRH = 0;
-  const rhLeer = raum.phiRH === undefined || String(raum.phiRH).trim() === '';
-  if (!rhLeer) phiRH = p.ein(raum.phiRH, 'raum.phiRH', 'Φ_RH (Zahl eingeben oder leer lassen)');
+  // Aufheizzuschlag: keiner, direkt (W) oder A_R · f_RH (Laasch S. 559)
+  const rhModus = rhModusVon(raum);
+  let phiRH = 0, fRH = NaN;
+  if (rhModus === 'direkt') phiRH = p.ein(raum.phiRH, 'raum.phiRH', 'Φ_RH');
+  else if (rhModus === 'fRH') {
+    fRH = p.ein(raum.fRH, 'raum.fRH', 'f_RH');
+    p.bed(nameOd(raum.fRHQuelle, ''), 'raum.fRHQuelle', 'Quelle f_RH fehlt (z. B. Laasch Tab. 8.46/8.47)');
+    phiRH = A * fRH;
+  }
 
   const phiHL = phiT + phiV + phiRH;
   const phiSpez = phiHL / A;
   const hinweise = [];
-  if (ok(Vex) && ok(Vsu) && Vex > Vsu) hinweise.push(`V̇_ex = ${fmt(Vex, 0)} m³/h > V̇_su = ${fmt(Vsu, 0)} m³/h: Der Abluftüberschuss ist im gewählten Ansatz nicht berücksichtigt.`);
-  if (raum.flaechen.some(f => f.an === 'erdreich') && P.optionen.erdreich === 'norm') hinweise.push(VARIANTEN.erdreich.hinweis);
-  if (P.optionen.vmin === 'norm') hinweise.push(VARIANTEN.vmin.hinweis);
+  if (!din && ok(Vex) && ok(Vsu) && Vex > Vsu) hinweise.push(`V̇_ex = ${fmt(Vex, 0)} m³/h > V̇_su = ${fmt(Vsu, 0)} m³/h: Der Abluftüberschuss ist im Excel-Ansatz nicht berücksichtigt (im Verfahren DIN EN 12831:2003 schon).`);
+  if (din && minMassgebend) hinweise.push(`Mindestluftwechsel maßgebend: V̇_min = ${fmt(Vmin, 1)} m³/h > ${fmt(Vroh, 1)} m³/h (Laasch S. 559).`);
+  if (din && ok(Vsu) && Vsu > 0) hinweise.push(HINWEIS_2017);
   zeilen.filter(z => z.gewinn).forEach(z => hinweise.push(`${z.label}: Φ = ${fmt(z.phi, 0)} W – Wärmegewinn vom wärmeren Nachbarraum.`));
 
   const fehlt = p.fehlt;
   const vollstaendig = fehlt.length === 0 && dOK;
+  const nurVoll = x => (vollstaendig ? x : NaN);
   return {
-    id: raum.id, vollstaendig, fehlt, hinweise,
-    w: { A, L, B, teile, hi, V, te, tint, dth, tme, fg1, Gw, rhocp, Vsu, tsu, eta, fsu, Vex, n50, e: eW, eps: epsW, Vinf, Vmin, nmin, Vaussen, maxText, suModus: lu.suModus,
+    id: raum.id, vollstaendig, fehlt, hinweise, verfahren: vf,
+    w: { A, L, B, teile, hi, V, te, tint, dth, tme, fg1, Gw, rhocp, Vsu, tsu, eta, fsu, Vex, n50, e: eW, eps: epsW, Vinf, Vmin, nmin, Vmech, Vroh, Vtherm, minMassgebend,
+         suModus: lu.suModus, rhModus, fRH, fRHQuelle: raum.fRHQuelle || '',
          raumart: ra ? ra.name : '', standort: st ? st.name : '', eKlasse: eRow ? eRow.klasse : '', epsKlasse: epsRow ? epsRow.klasse : '' },
     zeilen,
-    phiT: vollstaendig ? phiT : NaN, PhiVinf: vollstaendig ? PhiVinf : NaN, PhiVsu: vollstaendig ? PhiVsu : NaN,
-    phiV: vollstaendig ? phiV : NaN, phiRH: vollstaendig ? phiRH : NaN, rhGesetzt: !rhLeer,
-    phiHL: vollstaendig ? phiHL : NaN, phiSpez: vollstaendig ? phiSpez : NaN
+    phiT: nurVoll(phiT), PhiVinf: nurVoll(PhiVinf), PhiVsu: nurVoll(PhiVsu),
+    phiV: nurVoll(phiV), phiRH: nurVoll(phiRH), rhGesetzt: rhModus === 'direkt' || rhModus === 'fRH',
+    phiHL: nurVoll(phiHL), phiSpez: nurVoll(phiSpez)
   };
 }
 
@@ -350,6 +394,6 @@ function leseBauteilDatei(obj) {
 }
 
 if (typeof module !== 'undefined') module.exports = {
-  NORMSTAND, FORMELN, VARIANTEN, ANGRENZUNG, num, fmt, fmtV, ok, einheitenPruefung, einheitProdukt, EINH,
-  leeresProjekt, leererRaum, leereFlaeche, leereTeilflaeche, neueId, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY
+  NORMSTAND, VERFAHREN, HINWEIS_2017, QUELLE_LAASCH, formeln, ANGRENZUNG, num, fmt, fmtV, ok, einheitenPruefung, einheitProdukt, EINH,
+  leeresProjekt, leererRaum, leereFlaeche, leereTeilflaeche, neueId, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY, rhModusVon
 };

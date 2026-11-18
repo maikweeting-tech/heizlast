@@ -111,3 +111,48 @@ Ich habe die sichtbaren Texte in App und Vorzeigeseite durchgesehen und auf Ersa
 - Tests: Heizlast 69/69, Wärmeschutz 117/117.
 - Im Tab „Wärmeschutz“ starten die Randbedingungen leer: Bauteil, Raumnutzung, Wärmestromrichtung, θ_i, θ_e, DIN-4108-2-Ausgabe, GModG-Anforderung und Maßnahme. Auch „Beispiel laden“ setzt dort keine Standardwerte. „Berechnen“ zählt die fehlenden Angaben auf und markiert sie rot. Geprüft: 7 Felder rot und leer, nach dem Ausfüllen U = 0,23 W/(m²·K). Die eigenständige Wärmeschutz-App ist unverändert (20 °C / −5 °C vorbelegt).
 - Auch die Korrekturstufe ΔU_g (Luftspalte) und ΔU_r (Umkehrdach) starten im Tab leer und müssen gewählt bzw. eingetragen werden (Stufe 0 bzw. 0 = keine Korrektur). ΔU_r entfällt, wenn eine Schichtnummer für Tafel 4.6b angegeben ist. Fehlen sie, öffnet sich „Korrekturwerte ΔU“ und beide Felder werden rot. Geprüft im Browser.
+
+## Nachtrag 18.11.2026: Rechenverfahren DIN EN 12831:2003 nach Laasch
+
+**Quelle:** Laasch, T.; Laasch, E.: *Haustechnik – Grundlagen, Planung, Ausführung.* 13. Aufl., Springer Vieweg, Wiesbaden 2013, ISBN 978-3-8348-1260-5, Kap. 8.3, S. 535–560. Die Seiten wurden vom Nutzer fotografiert.
+
+**Statt der Einzelvarianten:** Im Tab „1 Projekt“ wird jetzt **ein** Rechenverfahren gewählt. Ohne Auswahl gibt es kein Ergebnis.
+
+| Punkt | Excel-Ansatz | DIN EN 12831:2003 (Laasch) |
+|---|---|---|
+| außen, unbeheizt | U_c · f | U_c · f (S. 555) |
+| beheizter Nachbarraum | U_c · f_ij | **U** · f_ij, ohne ΔU_WB (S. 555) |
+| Erdreich | U_c · f_g1 · f_g2 · G_w | **U_equiv** · f_g1 · f_g2 · G_W, U_equiv aus Tab. 8.53–8.60 (S. 555) |
+| b_u ohne bekanntes θ_u | – | b_u aus Tabelle (Tab. 8.51) mit Quelle (S. 549) |
+| Lüftung | ρc_p · [V̇_inf · Δθ + V̇_su · (θ_int − θ_su)] | V̇_therm = max(V̇_inf + V̇_su · f_V,su + V̇_mech,inf ; V̇_min), Φ_V = 0,34 · V̇_therm · Δθ (S. 556–559) |
+| Abluftüberschuss | nicht berücksichtigt | V̇_mech,inf = V̇_ex − V̇_su (S. 557) |
+| Aufheizzuschlag | Eingabe in W | Eingabe in W oder Φ_RH = A_R · f_RH (S. 559) |
+
+Weiterhin **nicht abgebildet** ist das allgemeine Lüftungsverfahren der aktuellen DIN EN 12831-1:2017. Für Gebäude mit Lüftungsanlage und WRG verlangt die aktuelle Norm dieses Verfahren. App, Vorzeigeseite und dieser Bericht weisen darauf hin.
+
+### Referenzfall Laasch S. 558: Formblatt R 8 „03 Küche“ (Reihenhaus Stuttgart)
+
+Die Eingaben stammen aus Formblatt G 1 (S. 554) und R 8 (S. 558): θ_e −12 °C, θ_int 20 °C, n_min 1,0 h⁻¹, n_50 1,0 h⁻¹, e 0,03, ε 1,0, f_RH 9,3 W/m². Das Projekt liegt als `referenz_laasch_kueche.json` bei.
+
+| Größe | Buch | App | Bemerkung |
+|---|---|---|---|
+| A_R / V_R | 10,69 m² / 27,37 m³ | 10,69 / 27,37 | – |
+| Φ_T AF / AW | 79 / 70 W | 78,9 / 69,9 W | – |
+| Φ_T IT | 17 W | 18,0 W | Das Buch rechnet mit f = 0,15 gerundet, die App mit 5/32 = 0,156. |
+| Φ_T IW | **9 W** (H_T 0,28 W/K) | **93,1 W** | Das Buch ist in sich widersprüchlich: 9,9 m² · 0,15 · 1,88 W/(m²K) = 2,79 W/K, also 89 W. Auch Σ H_T = 5,47 W/K enthält die Zeile FB nicht. |
+| Φ_T FB | 70 W | 70,6 W | – |
+| Σ Φ_T | 245 W | 330,4 W | Unterschied nur aus Zeile IW und der Rundung von f |
+| V̇_inf / V̇_min = V̇_therm | 1,64 / 27,37 m³/h | 1,64 / 27,37 | Mindestluftwechsel maßgebend |
+| Φ_V | 298 W | 297,8 W | 0,07 % |
+| Φ_RH | 99 W | 99,4 W | – |
+| Φ_HL | 642 W | 727,7 W | Unterschied nur aus Zeile IW (+84 W) und der Rundung (+1 W) |
+
+### Weitere Prüfungen
+
+- **Kita-Testfall (Verfahren „Excel-Blatt“):** Ergebnis unverändert Φ_HL = 18 287,24 W (0,000 %).
+- **Kita im Verfahren DIN 2003:** Die App verlangt U_equiv, V̇_ex und n_min. Mit ausgeglichener Anlage und kleinem n_min ergibt sich dasselbe Φ_V wie im Excel-Ansatz. Bei großem n_min wird V̇_min maßgebend. Beides ist im Test geprüft.
+- **xlsx mit Formeln:** In Excel neu berechnet, ohne Fehlerzellen. Kita 18 287,24 W, Laasch-Küche 727,71 W, jeweils identisch mit der App.
+- **Druck A4:** Beide Projekte ergeben je 3 Seiten, siehe `vorzeigeseite_testprojekt.pdf` und `vorzeigeseite_laasch_kueche.pdf`.
+- **Behobener Fehler:** Beim Wechsel der Angrenzung (z. B. „beheizt“ → „b_u aus Tabelle“) blieb der alte Temperaturwert als b_u stehen. Jetzt wird das Feld geleert.
+- **Befund zur Excel-Mappe:** Laasch Tab. 8.40 (nach DIN EN 12831 Bbl. 1) gibt für Wesel θ_e = −10 °C und θ_m,e = 8,1 °C an. Im Excel-Blatt stehen −8,5 °C und 10,5 °C, dort als „aus dem Gedächtnis, prüfen“ vermerkt. Maßgebend für heute sind die Werte nach PLZ aus DIN/TS 12831-1:2020.
+- **Tests:** Heizlast 99/99.

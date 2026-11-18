@@ -26,7 +26,7 @@ function ergaenze(z) {
   const L = leeresProjekt();
   z.projekt = Object.assign(L.projekt, z.projekt || {});
   z.optionen = Object.assign(L.optionen, z.optionen || {});
-  z.optionen.infiltration = 'excel';
+  ['erdreich', 'vmin', 'infiltration'].forEach(k => delete z.optionen[k]);   // alte Einzelvarianten
   z.normwerte = Object.assign(L.normwerte, z.normwerte || {});
   z.bauteile = z.bauteile || []; z.raeume = z.raeume || [];
   if (!z.entwurf) { z.entwurf = leererRaum(); z.entwurfVon = ''; }
@@ -91,14 +91,8 @@ function render() {
 function rProjekt() {
   const st = S.normwerte.standorte.find(s => s.id === S.projekt.standortId);
   const opts = [['', '— Standort wählen —']].concat(S.normwerte.standorte.map(s => [s.id, s.name || '(Standort ohne Namen)']));
-  const var1 = (k) => {
-    const v = VARIANTEN[k];
-    return `<div class="karte"><h3>${v.titel}</h3>
-      <div class="radio" style="flex-direction:column;gap:4px">
-        <label><input type="radio" name="opt-${k}" data-b="optionen.${k}" data-r="1" value="excel" ${S.optionen[k] === 'excel' ? 'checked' : ''}> <span>${idx(esc(v.excel))}</span></label>
-        <label${k === 'infiltration' ? ' style="opacity:.6"' : ''}><input type="radio" name="opt-${k}" data-b="optionen.${k}" data-r="1" value="norm" ${S.optionen[k] === 'norm' ? 'checked' : ''} ${k === 'infiltration' ? 'disabled' : ''}> <span>${idx(esc(v.norm))}</span></label>
-      </div><p class="hinweis klein">${idx(esc(v.hinweis))}</p></div>`;
-  };
+  const vfWahl = ['din2003', 'excel'].map(k => { const v = VERFAHREN[k]; return `<label style="align-items:flex-start"><input type="radio" name="verfahren" data-b="optionen.verfahren" data-r="1" value="${k}" ${S.optionen.verfahren === k ? 'checked' : ''} style="margin-top:3px">
+      <span><b>${esc(v.titel)}</b><br><span class="klein">${idx(esc(v.text))}</span><br><span class="hinweis klein">Quelle: ${esc(v.quelle)}</span></span></label>`; }).join('');
   return `
   <div class="karte"><h2>Titelblock</h2>
     <div class="reihe drei">${feld('Projekt', 'projekt.projekt', '', '', 't')}${feld('Bauvorhaben', 'projekt.bauvorhaben', '', '', 't')}${feld('Bearbeiter', 'projekt.bearbeiter', '', '', 't')}</div>
@@ -115,16 +109,19 @@ function rProjekt() {
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
     <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub> ' + info('PhiWE'), 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis ${info('eta_nw')}</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
   </div>
-  <h2 style="margin:18px 0 8px">Rechenansatz: Abweichungen Excel-Blatt ↔ Norm ${info('variante')}</h2>
-  <p class="hinweis">Wo das Excel-Blatt „Heizlast“ von DIN EN 12831-1 abweicht, wählst du hier die Variante. Der Testfall (18,29 kW) gilt für den Excel-Ansatz.</p>
-  ${var1('infiltration')}${var1('erdreich')}${var1('vmin')}
+  <div class="karte"><h2>Rechenverfahren ${info('variante')}</h2>
+    <p class="hinweis">Nach welchem Rechenweg die App rechnet. Ohne Auswahl gibt es kein Ergebnis. Der Testfall Kita (18,29 kW) gilt für den Excel-Ansatz.</p>
+    <div class="radio" style="flex-direction:column;gap:12px;padding:6px;border-radius:8px" data-pf="projekt.verfahren">${vfWahl}</div>
+    <div class="hinweisbox">${idx(esc(HINWEIS_2017))}</div>
+  </div>
   <div class="karte"><h2>Regelwerk und Ausgabestand</h2>
     <div class="tabwrap"><table class="tab"><tr><th>Norm</th><th>Status</th><th>Prüfung (online)</th></tr>
-    ${NORMSTAND.map(n => `<tr><td><b>${esc(n.norm)}</b></td><td><span class="status ${n.status === 'geprueft' ? 'ok' : 'pr'}">${n.status === 'geprueft' ? '✓ geprüft' : 'prüfen'}</span></td><td class="klein">${esc(n.text)}</td></tr>`).join('')}
+    ${NORMSTAND.map(n => `<tr><td><b>${esc(n.norm)}</b></td><td><span class="status ${normBadge(n)[0]}">${normBadge(n)[1]}</span></td><td class="klein">${esc(n.text)}</td></tr>`).join('')}
     </table></div>
   </div>
   <div class="karte"><h2>Hinterlegte Formeln</h2>
-    <div class="formel">${FORMELN.map(f => esc(f.f) + '   [' + esc(f.e) + ']').join('\n')}</div>
+    <div class="formel">${formeln(S.optionen.verfahren).map(f => idx(esc(f.f)) + '   [' + esc(f.e) + ']').join('\n')}</div>
+    ${S.optionen.verfahren ? '' : '<p class="hinweis klein">Die verfahrensabhängigen Formeln erscheinen, sobald ein Rechenverfahren gewählt ist.</p>'}
     <details class="auf" style="margin-top:10px"><summary>Einheitenkontrolle je Rechenschritt</summary>
       <div class="tabwrap"><table class="tab"><tr><th>Rechenschritt</th><th>Einheiten</th><th>Ergebnis</th><th></th></tr>
       ${einheitenPruefung().map(s => `<tr><td>${esc(s.schritt)}</td><td class="mono klein">${esc(s.mal.join(' · '))}${s.durch ? ' / ' + esc(s.durch.join(' · ')) : ''}</td><td>${esc(s.soll)}</td><td><span class="status ${s.ok ? 'ok' : 'no'}">${s.ok ? '✓' : '✗'}</span></td></tr>`).join('')}
@@ -165,6 +162,7 @@ function zeigeInfo(el) {
   box.style.top = (unten + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 8) : unten) + 'px';
 }
 function schliesseInfo() { const box = $('infobox'); if (box) { box.hidden = true; box._von = null; } }
+const normBadge = n => (n.status === 'geprueft' ? ['ok', '✓ geprüft'] : n.status === 'ersetzt' ? ['pr', 'ersetzt'] : ['pr', 'prüfen']);
 function nachweisText() {
   if (!G.summe) return 'Σ Φ_HL fehlt (Räume unvollständig oder keine Räume)';
   if (!G.nachweis) return 'Φ_WE fehlt';
@@ -247,7 +245,7 @@ function rNormwerte() {
     const b = `normwerte.raumarten.#${r.id}`, pf = `nw.ra.${r.id}`;
     return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Raumart ${info('raumart')} ${inp(b + '.name', '', 'n', 'placeholder="z. B. Gruppenraum"')}${weg('raumarten', r.id)}</div></td></tr>
       ${nwZeile('Norm-Innentemperatur', 'θ<sub>int</sub>', '°C', b + '.tint', pf + '.tint', '<td></td>', 'theta_int')}
-      ${nwZeile('Mindestluftwechsel (nur Variante Norm)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>', 'nmin')}`;
+      ${nwZeile('Mindestluftwechsel (Verfahren DIN EN 12831:2003)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>', 'nmin')}`;
   }).join('');
   const liste = (art, sym, titel, pfk) => N[art].map(x => {
     const b = `normwerte.${art}.#${x.id}`;
@@ -277,17 +275,20 @@ function rRaum() {
   const anOpts = [['', '—']].concat(Object.entries(ANGRENZUNG));
   const eOpts = [['', '— wählen —']].concat(N.e.map(x => [x.id, `${x.klasse || '(ohne Klasse)'}: ${nwText(x.w, 3, '')}`]));
   const epsOpts = [['', '— wählen —']].concat(N.eps.map(x => [x.id, `${x.klasse || '(ohne Klasse)'}: ${nwText(x.w, 2, '')}`]));
-  const norm = S.optionen.erdreich === 'norm';
+  const din = S.optionen.verfahren === 'din2003';
   const fl = r.flaechen.map((f, i) => {
     const b = `${e}.flaechen.#${f.id}`, pf = `raum.fl.${f.id}`;
     const tx = f.an === 'unbeheizt' || f.an === 'beheizt';
+    const zusatz = tx ? inp(b + '.thetaX', pf + '.thetaX', 'z', `placeholder="${f.an === 'unbeheizt' ? 'θ_u' : 'θ_j'}"`)
+      : f.an === 'unbeheiztBu' ? `${inp(b + '.thetaX', pf + '.thetaX', 'z', 'placeholder="b_u"')} ${inp(b + '.buQuelle', pf + '.buQuelle', 'q', 'placeholder="Quelle b_u (Tabelle)"')}`
+      : f.an === 'erdreich' && din ? `${inp(b + '.Uequiv', pf + '.Uequiv', 'z', 'placeholder="U_equiv"')} ${inp(b + '.UequivQuelle', pf + '.UequivQuelle', 'q', 'placeholder="Quelle U_equiv (Tabelle)"')}` : '';
     return `<tr><td>${i + 1}</td>
       <td>${sel(b + '.bauteilId', pf + '.bauteilId', btOpts, false)}</td>
       <td>${sel(b + '.ausrichtung', '', AUSRICHTUNG.map(a => [a, a || '–']), false)}</td>
       <td>${inp(b + '.Ab', pf + '.Ab')}</td><td>${inp(b + '.Az', pf + '.Az')}</td>
       <td class="zahl" data-o="an:${f.id}">–</td>
       <td>${sel(b + '.an', pf + '.an', anOpts)}</td>
-      <td>${tx ? inp(b + '.thetaX', pf + '.thetaX', 'z', `placeholder="${f.an === 'unbeheizt' ? 'θ_u' : 'θ_j'}"`) : ''}${f.an === 'erdreich' && norm ? `${inp(b + '.Uequiv', pf + '.Uequiv', 'z', 'placeholder="U_equiv"')} ${inp(b + '.UequivQuelle', pf + '.UequivQuelle', 'q', 'placeholder="Quelle U_equiv"')}` : ''}</td>
+      <td>${zusatz}</td>
       <td class="zahl" data-o="phi:${f.id}">–</td>
       <td><button class="btn-icon" data-a="fl-weg" data-id="${f.id}" title="Fläche entfernen">×</button></td></tr>`;
   }).join('');
@@ -306,7 +307,7 @@ function rRaum() {
     </div>
   </div>
   <div class="karte"><h2>Hüllflächen</h2>
-    <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C${norm ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
+    <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
     ${fl || '<tr><td colspan="10" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>
     ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „3 Bauteile“ anlegen.</p>'}
@@ -318,12 +319,16 @@ function rRaum() {
         <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="theta" ${r.lueftung.suModus === 'theta' ? 'checked' : ''}> <span>θ<sub>su</sub> direkt</span> ${info('theta_su')}</label></div></div>
       ${r.lueftung.suModus === 'theta' ? feld('Zulufttemperatur θ<sub>su</sub> ' + info('theta_su'), lu + '.thetaSu', 'raum.lu.thetaSu', '°C', 'z') : feld('Rückwärmzahl η<sub>WRG</sub> ' + info('eta'), lu + '.eta', 'raum.lu.eta', '–', 'z')}
     </div>
-    <div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex'), lu + '.Vex', '', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub> ' + info('n50'), lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
-      <div><span class="hinweis klein">θ<sub>su</sub> in °C · V̇<sub>inf</sub> ${info('Vinf')} in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>
+    <div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex') + (din ? '' : ' <span class="einh">(nur Info)</span>'), lu + '.Vex', 'raum.lu.Vex', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub> ' + info('n50'), lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
+      <div><span class="hinweis klein">θ<sub>su</sub> in °C · V̇ ${info('Vinf')} ${info('Vtherm')} in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>
     <div class="reihe"><label class="feld">Abschirmungskoeffizient e ${info('e')} ${sel(lu + '.eId', 'raum.lu.eId', eOpts)}</label><label class="feld">Höhenkorrekturfaktor ε ${info('eps')} ${sel(lu + '.epsId', 'raum.lu.epsId', epsOpts)}</label></div>
   </div>
   <div class="karte"><h2>Aufheizzuschlag ${info('PhiRH')}</h2>
-    <div class="reihe">${feld('Φ<sub>RH</sub> (nur wenn gewünscht, sonst leer)', e + '.phiRH', 'raum.phiRH', 'W', 'z')}<p class="hinweis klein">Ohne Eingabe wird kein Aufheizzuschlag angesetzt.</p></div>
+    <div class="radio">${[['', 'kein Aufheizzuschlag'], ['direkt', 'Φ<sub>RH</sub> direkt in W'], ['fRH', 'Φ<sub>RH</sub> = A<sub>R</sub> · f<sub>RH</sub>']].map(([v, t]) =>
+      `<label><input type="radio" name="rhmodus" data-b="${e}.rhModus" data-r="1" value="${v}" ${rhModusVon(r) === v ? 'checked' : ''}> <span>${t}</span></label>`).join('')} ${info('fRH')}</div>
+    ${rhModusVon(r) === 'direkt' ? `<div class="reihe">${feld('Φ<sub>RH</sub>', e + '.phiRH', 'raum.phiRH', 'W', 'z')}</div>` : ''}
+    ${rhModusVon(r) === 'fRH' ? `<div class="reihe">${feld('Wiederaufheizfaktor f<sub>RH</sub>', e + '.fRH', 'raum.fRH', 'W/m²', 'z')}${feld('Quelle f<sub>RH</sub>', e + '.fRHQuelle', 'raum.fRHQuelle', '', 't', 'placeholder="z. B. Laasch, Haustechnik, Tab. 8.47"')}</div>` : ''}
+    <p class="hinweis klein">Nur ansetzen, wenn eine Heizunterbrechung mit dem Bauherrn vereinbart ist.</p>
   </div>
   <div class="karte"><h2>Ergebnis des Raums</h2><div data-o="raumerg"></div>
     <div class="knoepfe" style="margin-top:10px"><button class="btn btn-primaer" data-a="raum-ok">Raum übernehmen</button>
@@ -384,13 +389,22 @@ function rwTabelle(R, papier) {
   let h = '';
   R.zeilen.forEach(z => { h += zr(`${esc(z.label)} <small>(${esc(ANGRENZUNG[z.an])}${z.ukName === 'U_equiv' ? ', U_equiv' : ''})</small>`, W(z.bezug, 2), 'm²', W(z.Uk, 3), W(z.f, 3), W(z.dth, 1), `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
   h += zr('<b>Σ Transmission Φ<sub>T</sub></b>', '', '', '', '', '', `<b>${W(R.phiT)}</b>`, papier ? 'zw' : 'summe');
-  if (R.w.Vsu > 0) h += zr('Lüftung Zuluft' + (R.w.suModus === 'eta' ? ' mit WRG' : ''), W(R.w.Vsu, 0), 'm³/h', W(R.w.rhocp, 2), W(R.w.fsu, 3), W(R.w.dth, 1), W(R.PhiVsu));
-  h += zr(S.optionen.vmin === 'norm' ? 'Außenluft max(V̇<sub>inf</sub>; V̇<sub>min</sub> − V̇<sub>su</sub>)' : 'Infiltration', W(R.w.Vaussen, 1), 'm³/h', W(R.w.rhocp, 2), '1', W(R.w.dth, 1), W(R.PhiVinf));
+  const w = R.w;
+  if (R.verfahren === 'din2003') {
+    h += zr('Infiltration V̇<sub>inf</sub>', W(w.Vinf, 2), 'm³/h', '', '1', '', '');
+    if (w.Vsu > 0) h += zr('Zuluft V̇<sub>su</sub> · f<sub>V,su</sub>' + (w.suModus === 'eta' ? ' (WRG)' : ''), W(w.Vsu, 0), 'm³/h', '', W(w.fsu, 3), '', '');
+    if (w.Vmech > 0) h += zr('Abluftüberschuss V̇<sub>mech,inf</sub>', W(w.Vmech, 1), 'm³/h', '', '1', '', '');
+    h += zr('Mindestluftwechsel V̇<sub>min</sub> = n<sub>min</sub> · V<sub>i</sub>', W(w.Vmin, 1), 'm³/h', '', '', '', '');
+    h += zr(`thermisch wirksam V̇<sub>therm</sub> = max(…)${w.minMassgebend ? ' – V̇<sub>min</sub> maßgebend' : ''}`, W(w.Vtherm, 1), 'm³/h', W(w.rhocp, 2), '1', W(w.dth, 1), W(R.phiV));
+  } else {
+    if (w.Vsu > 0) h += zr('Lüftung Zuluft' + (w.suModus === 'eta' ? ' mit WRG' : ''), W(w.Vsu, 0), 'm³/h', W(w.rhocp, 2), W(w.fsu, 3), W(w.dth, 1), W(R.PhiVsu));
+    h += zr('Infiltration', W(w.Vinf, 1), 'm³/h', W(w.rhocp, 2), '1', W(w.dth, 1), W(R.PhiVinf));
+  }
   h += zr('<b>Σ Lüftung Φ<sub>V</sub></b>', '', '', '', '', '', `<b>${W(R.phiV)}</b>`, papier ? 'zw' : 'summe');
-  if (R.rhGesetzt) h += zr('Aufheizzuschlag Φ<sub>RH</sub>', '', '', '', '', '', W(R.phiRH));
+  if (R.rhGesetzt) h += w.rhModus === 'fRH' ? zr('Aufheizzuschlag Φ<sub>RH</sub> = A<sub>R</sub> · f<sub>RH</sub>', W(w.A, 2), 'm²', W(w.fRH, 1), '', '', W(R.phiRH)) : zr('Aufheizzuschlag Φ<sub>RH</sub>', '', '', '', '', '', W(R.phiRH));
   h += zr('<b>Norm-Heizlast Φ<sub>HL</sub></b>', '', '', '', '', '', `<b>${W(R.phiHL)}</b>`, papier ? 'ges' : 'summe');
   return `<div class="tabwrap"><table class="tab"><thead><tr><th>Anteil</th><th class="${c}">Bezugsgröße</th><th>Einheit</th><th class="${c}">Kennwert${papier ? '' : ' ' + info('kennwert')}</th><th class="${c}">Faktor${papier ? '' : ' ' + info('f')}</th><th class="${c}">Δθ in K${papier ? '' : ' ' + info('dtheta')}</th><th class="${c}">Φ in W</th></tr></thead><tbody>${h}</tbody></table></div>
-    <p class="hinweis klein" style="margin:2px 0 6px">Kennwert: U<sub>c</sub> in W/(m²·K) bzw. ρ·c<sub>p</sub> in Wh/(m³·K). Φ = Bezugsgröße · Kennwert · Faktor · Δθ.</p>`;
+    <p class="hinweis klein" style="margin:2px 0 6px">Kennwert: U<sub>c</sub> / U / U<sub>equiv</sub> in W/(m²·K), ρ·c<sub>p</sub> in Wh/(m³·K), f<sub>RH</sub> in W/m². Φ = Bezugsgröße · Kennwert · Faktor · Δθ.</p>`;
 }
 // Formel → Werte → Ergebnis
 function fwZeilen(R) {
@@ -414,9 +428,16 @@ function fwZeilen(R) {
   gr('Lüftung');
   if (w.Vsu > 0 && w.suModus === 'eta') z('θ_su = θ_e + η_WRG · (θ_int − θ_e)', `= ${fmtV(w.te, 1)} + ${W(w.eta, 2)} · ${W(w.dth, 1)}`, `= ${W(w.tsu, 2)} °C`);
   z('V̇_inf = 2 · V_i · n_50 · e · ε', `= 2 · ${W(w.V, 2)} · ${W(w.n50, 2)} · ${W(w.e, 3)} · ${W(w.eps, 2)}`, `= ${W(w.Vinf, 2)} m³/h`);
-  if (S.optionen.vmin === 'norm') { z('V̇_min = n_min · V_i', `= ${W(w.nmin, 2)} · ${W(w.V, 2)}`, `= ${W(w.Vmin, 2)} m³/h`); z('V̇_außen = max(V̇_inf ; V̇_min − V̇_su)', `= max(${W(w.Vinf, 2)} ; ${W(w.Vmin, 2)} − ${W(w.Vsu, 0)})`, `= ${W(w.Vaussen, 2)} m³/h`); }
-  const vn = S.optionen.vmin === 'norm' ? 'V̇_außen' : 'V̇_inf';
-  z(`Φ_V = ρ·c_p · [${vn} · Δθ + V̇_su · (θ_int − θ_su)]`, w.Vsu > 0 ? `= ${W(w.rhocp, 2)} · [${W(w.Vaussen, 2)} · ${W(w.dth, 1)} + ${W(w.Vsu, 0)} · (${fmtV(w.tint, 1)} − ${fmtV(w.tsu, 2)})]` : `= ${W(w.rhocp, 2)} · [${W(w.Vaussen, 2)} · ${W(w.dth, 1)} + 0]`, `= ${W(R.phiV, 1)} W`);
+  if (R.verfahren === 'din2003') {
+    if (w.Vsu > 0) z('f_V,su = (θ_int − θ_su) / (θ_int − θ_e)', `= (${fmtV(w.tint, 1)} − ${fmtV(w.tsu, 2)}) / ${W(w.dth, 1)}`, `= ${W(w.fsu, 3)}`);
+    z('V̇_mech,inf = V̇_ex − V̇_su  (nur Überschuss)', `= max(${W(w.Vex, 0)} − ${W(w.Vsu, 0)} ; 0)`, `= ${W(w.Vmech, 2)} m³/h`);
+    z('V̇_min = n_min · V_i', `= ${W(w.nmin, 2)} · ${W(w.V, 2)}`, `= ${W(w.Vmin, 2)} m³/h`);
+    z('V̇_therm = max(V̇_inf + V̇_su · f_V,su + V̇_mech,inf ; V̇_min)', `= max(${W(w.Vinf, 2)} + ${W(w.Vsu, 0)} · ${W(w.fsu, 3)} + ${W(w.Vmech, 2)} ; ${W(w.Vmin, 2)})`, `= ${W(w.Vtherm, 2)} m³/h`);
+    z('Φ_V = ρ·c_p · V̇_therm · Δθ', `= ${W(w.rhocp, 2)} · ${W(w.Vtherm, 2)} · ${W(w.dth, 1)}`, `= ${W(R.phiV, 1)} W`);
+  } else {
+    z('Φ_V = ρ·c_p · [V̇_inf · Δθ + V̇_su · (θ_int − θ_su)]', w.Vsu > 0 ? `= ${W(w.rhocp, 2)} · [${W(w.Vinf, 2)} · ${W(w.dth, 1)} + ${W(w.Vsu, 0)} · (${fmtV(w.tint, 1)} − ${fmtV(w.tsu, 2)})]` : `= ${W(w.rhocp, 2)} · [${W(w.Vinf, 2)} · ${W(w.dth, 1)} + 0]`, `= ${W(R.phiV, 1)} W`);
+  }
+  if (w.rhModus === 'fRH') { gr('Aufheizzuschlag'); z('Φ_RH = A_R · f_RH', `= ${W(w.A, 2)} · ${W(w.fRH, 1)}`, `= ${W(R.phiRH, 1)} W`); }
   gr('Ergebnis');
   z('Φ_HL = Σ Φ_T + Φ_V + Φ_RH', `= ${W(R.phiT, 1)} + ${W(R.phiV, 1)} + ${R.rhGesetzt ? W(R.phiRH, 1) : '0'}`, `= ${W(R.phiHL, 1)} W = ${W(R.phiHL / 1000, 2)} kW`);
   z('φ = Φ_HL / A', `= ${W(R.phiHL, 1)} / ${W(w.A, 2)}`, `= ${W(R.phiSpez, 1)} W/m²`);
@@ -446,13 +467,14 @@ function blattHtml() {
   const erd = S.raeume.some(r => r.flaechen.some(f => f.an === 'erdreich'));
   const rb = [];
   if (st) { rb.push(['Norm-Außentemperatur θ_e', st.te, 1, '°C', st.name]); if (erd) rb.push(['Jahresmittel Außentemperatur θ_m,e', st.tme, 1, '°C', st.name]); }
-  N.raumarten.filter(r => genutzt.ra.has(r.id)).forEach(r => { rb.push([`Norm-Innentemperatur θ_int (${r.name})`, r.tint, 1, '°C']); if (S.optionen.vmin === 'norm') rb.push([`Mindestluftwechsel n_min (${r.name})`, r.nmin, 2, '1/h']); });
+  N.raumarten.filter(r => genutzt.ra.has(r.id)).forEach(r => { rb.push([`Norm-Innentemperatur θ_int (${r.name})`, r.tint, 1, '°C']); if (S.optionen.verfahren === 'din2003') rb.push([`Mindestluftwechsel n_min (${r.name})`, r.nmin, 2, '1/h']); });
   if (erd) { rb.push(['Korrekturfaktor f_g1', N.fg1, 2, '–']); rb.push(['Korrekturfaktor Grundwasser G_w', N.Gw, 2, '–']); }
   rb.push(['Wärmekapazität Luft ρ·c_p', N.rhocp, 2, 'Wh/(m³·K)']);
   N.e.filter(x => genutzt.e.has(x.id)).forEach(x => rb.push([`Abschirmungskoeffizient e (${x.klasse})`, x.w, 3, '–']));
   N.eps.filter(x => genutzt.eps.has(x.id)).forEach(x => rb.push([`Höhenkorrekturfaktor ε (${x.klasse})`, x.w, 2, '–']));
   const rbHtml = rb.map(([t, n, d, e]) => `<tr><td>${idx(esc(t))}</td><td class="z">${ok(num(n.wert)) ? W(num(n.wert), d) : '–'}</td><td>${e}</td><td>${esc(n.quelle) || '–'}</td><td>${stTxt(n)}</td></tr>`).join('');
-  const varTxt = ['infiltration', 'erdreich', 'vmin'].map(k => `<li>${VARIANTEN[k].titel}: ${idx(esc(S.optionen[k] === 'norm' ? VARIANTEN[k].norm : VARIANTEN[k].excel))}</li>`).join('');
+  const vf = VERFAHREN[S.optionen.verfahren];
+  const varTxt = vf ? `<li><b>${esc(vf.titel)}</b>: ${idx(esc(vf.text))}</li><li>Nicht abgebildet: ${idx(esc(HINWEIS_2017))}</li>` : '<li><span class="no">Kein Rechenverfahren gewählt.</span></li>';
   const raeumeHtml = G.raeume.map((R, i) => { const r = S.raeume[i]; return `<tr><td>${esc(r.nr)}</td><td>${esc(r.name)}</td><td class="z">${v(R.w.A, 2)}</td><td class="z">${v(R.w.V, 1)}</td><td class="z">${v(R.w.tint, 1)}</td><td class="z">${v(R.phiT, 0)}</td><td class="z">${v(R.phiV, 0)}</td><td class="z">${R.vollstaendig && R.rhGesetzt ? v(R.phiRH, 0) : '–'}</td><td class="z"><b>${v(R.phiHL, 0)}</b></td><td class="z">${v(R.phiSpez, 1)}</td><td>${R.vollstaendig ? '<span class="ok">vollst.</span>' : '<span class="no">unvollst.</span>'}</td></tr>`; }).join('');
   const btHtml = S.bauteile.map(b => { const u = num(b.U), d = num(b.dUWB); return `<tr><td>${esc(b.name)}</td><td>${esc(b.art)}</td><td class="z">${v(u, 3)}</td><td class="z">${v(d, 3)}</td><td class="z"><b>${v(u + d, 3)}</b></td><td>${esc(b.quelle)}${b.dUWBQuelle ? '; ΔU_WB: ' + esc(b.dUWBQuelle) : ''}</td></tr>`; }).join('');
   let rw = '<p>Kein Raum gewählt.</p>';
@@ -465,7 +487,8 @@ function blattHtml() {
   }
   const nw = G.nachweis;
   const quellen = [];
-  NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${n.status === 'geprueft' ? 'ok' : 'pr'}">${n.status === 'geprueft' ? '✓ geprüft' : 'prüfen'}</span>: ${esc(n.text)}</li>`));
+  NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${normBadge(n)[0]}">${normBadge(n)[1]}</span>: ${esc(n.text)}</li>`));
+  quellen.push(`<li>Rechenweg DIN EN 12831:2003: ${esc(QUELLE_LAASCH)}</li>`);
   const alleNW = [];
   N.standorte.forEach(s => { alleNW.push([`θ_e ${s.name}`, s.te, '°C']); alleNW.push([`θ_m,e ${s.name}`, s.tme, '°C']); });
   N.raumarten.forEach(r => { alleNW.push([`θ_int ${r.name}`, r.tint, '°C']); alleNW.push([`n_min ${r.name}`, r.nmin, '1/h']); });
@@ -476,7 +499,7 @@ function blattHtml() {
   const unvoll = G.raeume.filter(r => !r.vollstaendig).length;
   return `
   <div class="titelblock">
-    <div class="kopf"><b>Norm-Heizlast – raumweise</b><span>nach DIN EN 12831-1:2017-09 mit DIN/TS 12831-1:2020-04</span></div>
+    <div class="kopf"><b>Norm-Heizlast – raumweise</b><span>${vf ? 'Rechenweg: ' + esc(vf.titel) : 'Rechenverfahren nicht gewählt'}</span></div>
     <div class="pos"><small>Position</small><b>${esc(P.position) || '–'}</b></div>
     <div class="felder">
       <div class="breit"><small>Projekt</small>${esc(P.projekt) || '–'}</div><div class="breit"><small>Bauvorhaben</small>${esc(P.bauvorhaben) || '–'}</div>
@@ -486,7 +509,7 @@ function blattHtml() {
   ${unvoll ? `<div class="warn">${unvoll} von ${G.raeume.length} Räumen unvollständig – ohne Ergebnis. Gebäudeheizlast und Nachweis entfallen, bis alle Angaben vorliegen.</div>` : ''}
   <h2><span class="nr">1</span>Kurzbeschreibung, Regelwerk, Randbedingungen</h2>
   <p>${idx(esc(P.beschreibung)) || '<i>Keine Kurzbeschreibung eingetragen.</i>'}</p>
-  <p><b>Regelwerk:</b> DIN EN 12831-1:2017-09 (<span class="${NORMSTAND[0].status === 'geprueft' ? 'ok' : 'pr'}">${NORMSTAND[0].status === 'geprueft' ? '✓ geprüft' : 'prüfen'}</span>) mit DIN/TS 12831-1:2020-04 (<span class="${NORMSTAND[1].status === 'geprueft' ? 'ok' : 'pr'}">${NORMSTAND[1].status === 'geprueft' ? '✓ geprüft' : 'prüfen'}</span>), raumweises Verfahren. Standort: ${st ? esc(st.name) : '–'}.</p>
+  <p><b>Regelwerk:</b> geltend DIN EN 12831-1:2017-09 (<span class="${normBadge(NORMSTAND[0])[0]}">${normBadge(NORMSTAND[0])[1]}</span>) mit DIN/TS 12831-1:2020-04 (<span class="${normBadge(NORMSTAND[1])[0]}">${normBadge(NORMSTAND[1])[1]}</span>). Gerechnet wird raumweise nach dem unten genannten Rechenweg. Standort: ${st ? esc(st.name) : '–'}.</p>
   <p><b>Rechenansatz:</b></p><ul>${varTxt}</ul>
   <div class="block"><table><thead><tr><th>Randbedingung</th><th class="z">Wert</th><th>Einheit</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${rbHtml || '<tr><td colspan="5">–</td></tr>'}</tbody></table></div>
   <h2><span class="nr">2</span>Bauteilkatalog</h2>
@@ -516,7 +539,7 @@ function druckstil() {
   $('druckstil').textContent = `@page { size: A4 portrait; margin: 17mm 14mm 15mm 16mm;
     @top-left { content: "${q(kopf)}"; ${font} }
     @top-right { content: "Seite " counter(page) " von " counter(pages); ${font} }
-    @bottom-left { content: "Heizlast nach DIN EN 12831-1 · ersetzt keine TGA-Fachplanung"; ${font} }
+    @bottom-left { content: "Norm-Heizlast · ${q((VERFAHREN[S.optionen.verfahren] || {}).kurz || 'Verfahren nicht gewählt')} · ersetzt keine TGA-Fachplanung"; ${font} }
     @bottom-right { content: "${q(P.bearbeiter)}${P.datum ? ' · ' + q(datumDE(P.datum)) : ''}"; ${font} } }`;
 }
 
@@ -540,7 +563,7 @@ function aktualisiereRaum() {
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
   (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
   R.zeilen.forEach(z => { set('an:' + z.flId, W(z.bezug, 2)); set('phi:' + z.flId, `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
-  set('lu', `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}`);
+  set('lu', `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}${R.verfahren === 'din2003' ? ` · V̇<sub>min</sub> = ${W(w.Vmin, 2)} · V̇<sub>therm</sub> = ${W(w.Vtherm, 2)}` : ''}`);
   set('raumerg', raumErgebnisHtml(R));
 }
 function nachEingabe(el) {
@@ -557,7 +580,7 @@ function nachEingabe(el) {
 const tief = o => JSON.parse(JSON.stringify(o));
 function entwurfBenutzt() {
   const r = S.entwurf, l = r.lueftung;
-  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH ||
+  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH || r.rhModus || r.fRH ||
     l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId);
 }
 const AKTION = {
@@ -682,7 +705,7 @@ function exportXlsx() {
     return ws;
   };
   const n = v => { const x = num(v); return ok(x) ? x : ''; };
-  const kopfz = ['Heizlast nach DIN EN 12831-1 / DIN/TS 12831-1 – ' + (S.projekt.projekt || ''), `Bearbeiter: ${S.projekt.bearbeiter} · Datum: ${datumDE(S.projekt.datum)} · Pos. ${S.projekt.position}`];
+  const kopfz = ['Heizlast – Rechenweg: ' + ((VERFAHREN[S.optionen.verfahren] || {}).titel || 'nicht gewählt') + ' – ' + (S.projekt.projekt || ''), `Bearbeiter: ${S.projekt.bearbeiter} · Datum: ${datumDE(S.projekt.datum)} · Pos. ${S.projekt.position}`];
   // Normwerte
   const nr = [[kopfz[0]], [kopfz[1]], [], ['Größe', 'Zeichen', 'Wert', 'Einheit', 'Quelle', 'geprüft']];
   const NR = {};
@@ -694,24 +717,27 @@ function exportXlsx() {
   // Bauteile
   const br = [[kopfz[0]], [kopfz[1]], [], ['Bauteil', 'Art', 'U in W/(m²·K)', 'ΔU_WB in W/(m²·K)', 'U_c in W/(m²·K)', 'Quelle']];
   const BR = {};
-  S.bauteile.forEach(b => { const z = br.length + 1; br.push([b.name, b.art, n(b.U), n(b.dUWB), { f: `C${z}+D${z}`, v: num(b.U) + num(b.dUWB) }, b.quelle]); BR[b.id] = `Bauteile!$E$${z}`; });
+  const BU = {};
+  S.bauteile.forEach(b => { const z = br.length + 1; br.push([b.name, b.art, n(b.U), n(b.dUWB), { f: `C${z}+D${z}`, v: num(b.U) + num(b.dUWB) }, b.quelle]); BR[b.id] = `Bauteile!$E$${z}`; BU[b.id] = `Bauteile!$C$${z}`; });
   // Räume und Hüllflächen
-  const hr = [[kopfz[0]], [kopfz[1]], [], ['Raum-Nr.', 'Bauteil', 'Ausrichtung', 'angrenzend an', 'A brutto in m²', 'Abzug in m²', 'A netto in m²', 'U_c / U_equiv in W/(m²·K)', 'θ_u / θ_j in °C', 'f in –', 'Δθ in K', 'Φ_T in W']];
-  const rr = [[kopfz[0]], [kopfz[1]], [], ['Nr.', 'Raum', 'Geschoss', 'Raumart', 'L in m', 'B in m', 'A in m²', 'h_i in m', 'V in m³', 'θ_int in °C', 'Δθ in K', 'Φ_T in W', 'V̇_su in m³/h', 'η_WRG', 'θ_su in °C', 'n_50 in 1/h', 'e', 'ε', 'V̇_inf in m³/h', 'V̇_min in m³/h', 'V̇_außen in m³/h', 'Φ_V in W', 'Φ_RH in W', 'Φ_HL in W', 'φ in W/m²', 'Status']];
+  const hr = [[kopfz[0]], [kopfz[1]], [], ['Raum-Nr.', 'Bauteil', 'Ausrichtung', 'angrenzend an', 'A brutto in m²', 'Abzug in m²', 'A netto in m²', 'U_k (U_c / U / U_equiv) in W/(m²·K)', 'θ_u / θ_j in °C bzw. b_u', 'f in –', 'Δθ in K', 'Φ_T in W']];
+  const rr = [[kopfz[0]], [kopfz[1]], [], ['Nr.', 'Raum', 'Geschoss', 'Raumart', 'L in m', 'B in m', 'A in m²', 'h_i in m', 'V in m³', 'θ_int in °C', 'Δθ in K', 'Φ_T in W', 'V̇_su in m³/h', 'η_WRG', 'θ_su in °C', 'n_50 in 1/h', 'e', 'ε', 'V̇_inf in m³/h', 'V̇_min in m³/h', 'V̇_therm bzw. V̇_inf in m³/h', 'Φ_V in W', 'Φ_RH in W', 'Φ_HL in W', 'φ in W/m²', 'Status', 'V̇_ex in m³/h', 'f_RH in W/m²']];
   const R0 = rr.length + 1;
   G.raeume.forEach((R, i) => {
     const r = S.raeume[i], z = R0 + i, v = R.vollstaendig, w = R.w;
     const h0 = hr.length + 1;
     r.flaechen.forEach((f, k) => {
       const h = hr.length + 1, zr = R.zeilen[k] || {};
-      const fF = !v ? '' : f.an === 'aussen' ? 1 : f.an === 'erdreich' ? { f: `${NR.fg1}*((Räume!J${z}-${NR.tme})/(Räume!J${z}-${NR.te}))*${NR.Gw}`, v: zr.f } : { f: `(Räume!J${z}-I${h})/(Räume!J${z}-${NR.te})`, v: zr.f };
-      const uk = !v ? '' : zr.ukName === 'U_equiv' ? n(f.Uequiv) : { f: BR[f.bauteilId].replace('Bauteile!', 'Bauteile!'), v: zr.Uk };
+      const fF = !v ? '' : f.an === 'aussen' ? 1 : f.an === 'unbeheiztBu' ? { f: `I${h}`, v: zr.f }
+        : f.an === 'erdreich' ? { f: `${NR.fg1}*((Räume!J${z}-${NR.tme})/(Räume!J${z}-${NR.te}))*${NR.Gw}`, v: zr.f } : { f: `(Räume!J${z}-I${h})/(Räume!J${z}-${NR.te})`, v: zr.f };
+      const uk = !v ? '' : zr.ukName === 'U_equiv' ? n(f.Uequiv) : zr.ukName === 'U' ? { f: BU[f.bauteilId], v: zr.Uk } : { f: BR[f.bauteilId], v: zr.Uk };
       hr.push([r.nr, (S.bauteile.find(b => b.id === f.bauteilId) || {}).name || '', f.ausrichtung, ANGRENZUNG[f.an] || '', n(f.Ab), n(f.Az), { f: `E${h}-F${h}`, v: zr.bezug }, uk,
-        f.an === 'unbeheizt' || f.an === 'beheizt' ? n(f.thetaX) : '', fF, v ? { f: `Räume!K${z}`, v: w.dth } : '', v ? { f: `G${h}*H${h}*J${h}*K${h}`, v: zr.phi } : '']);
+        ['unbeheizt', 'beheizt', 'unbeheiztBu'].includes(f.an) ? n(f.thetaX) : '', fF, v ? { f: `Räume!K${z}`, v: w.dth } : '', v ? { f: `G${h}*H${h}*J${h}*K${h}`, v: zr.phi } : '']);
     });
     const h1 = hr.length;
     const eta = r.lueftung.suModus === 'eta';
-    const ra = r.raumartId, vmin = S.optionen.vmin === 'norm';
+    const ra = r.raumartId, din = R.verfahren === 'din2003', rhm = w.rhModus;
+    const vth = w.Vsu > 0 ? `S${z}+M${z}*(J${z}-O${z})/K${z}+MAX(AA${z}-M${z},0)` : `S${z}+MAX(AA${z}-M${z},0)`;
     rr.push([r.nr, r.name, r.geschoss, w.raumart,
       r.amodus === 'LB' ? n(r.L) : '', r.amodus === 'LB' ? n(r.B) : '',
       r.amodus === 'A' ? n(r.A) : r.amodus === 'TF' ? (w.teile && w.teile.length && w.teile.every(t => ok(t.A)) ? { f: w.teile.map((t, i) => `${t.minus ? '-' : (i ? '+' : '')}${t.L}*${t.B}`).join(''), v: w.A } : '') : { f: `E${z}*F${z}`, v: w.A },
@@ -722,11 +748,12 @@ function exportXlsx() {
       v ? (w.Vsu > 0 ? (eta ? { f: `${NR.te}+N${z}*(J${z}-${NR.te})`, v: w.tsu } : n(r.lueftung.thetaSu)) : '') : '',
       n(r.lueftung.n50), v ? { f: NR['e' + r.lueftung.eId], v: w.e } : '', v ? { f: NR['eps' + r.lueftung.epsId], v: w.eps } : '',
       v ? { f: `2*I${z}*P${z}*Q${z}*R${z}`, v: w.Vinf } : '',
-      v && vmin ? { f: `${NR['nmin' + ra]}*I${z}`, v: w.Vmin } : '',
-      v ? (vmin ? { f: `MAX(S${z},T${z}-M${z})`, v: w.Vaussen } : { f: `S${z}`, v: w.Vaussen }) : '',
-      v ? { f: w.Vsu > 0 ? `${NR.rhocp}*(U${z}*K${z}+M${z}*(J${z}-O${z}))` : `${NR.rhocp}*U${z}*K${z}`, v: R.phiV } : '',
-      v ? (R.rhGesetzt ? n(r.phiRH) : 0) : '',
-      v ? { f: `L${z}+V${z}+W${z}`, v: R.phiHL } : '', v ? { f: `X${z}/G${z}`, v: R.phiSpez } : '', v ? 'vollständig' : 'unvollständig']);
+      v && din ? { f: `${NR['nmin' + ra]}*I${z}`, v: w.Vmin } : '',
+      v ? (din ? { f: `MAX(${vth},T${z})`, v: w.Vtherm } : { f: `S${z}`, v: w.Vinf }) : '',
+      v ? { f: din ? `${NR.rhocp}*U${z}*K${z}` : w.Vsu > 0 ? `${NR.rhocp}*(U${z}*K${z}+M${z}*(J${z}-O${z}))` : `${NR.rhocp}*U${z}*K${z}`, v: R.phiV } : '',
+      v ? (rhm === 'fRH' ? { f: `G${z}*AB${z}`, v: R.phiRH } : rhm === 'direkt' ? n(r.phiRH) : 0) : '',
+      v ? { f: `L${z}+V${z}+W${z}`, v: R.phiHL } : '', v ? { f: `X${z}/G${z}`, v: R.phiSpez } : '', v ? 'vollständig' : 'unvollständig',
+      n(r.lueftung.Vex), rhm === 'fRH' ? n(r.fRH) : '']);
   });
   const zs = rr.length + 1, ze = zs - 1, s = G.summe;
   if (S.raeume.length) {
@@ -740,8 +767,8 @@ function exportXlsx() {
     rr.push(['', 'Nachweis η = Σ Φ_HL / Φ_WE ≤ 1,0', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s && G.nachweis ? { f: `X${zw - 1}/X${zw}`, v: G.nachweis.eta } : '',
       s && G.nachweis ? { f: `IF(X${zw + 1}<=1,"ja","nein")`, v: G.nachweis.erfuellt ? 'ja' : 'nein' } : '']);
   }
-  XLSX.utils.book_append_sheet(wb, blatt(rr, [8, 24, 9, 16, 8, 8, 9, 8, 9, 9, 8, 10, 10, 7, 9, 8, 7, 7, 10, 10, 10, 10, 9, 10, 9, 14]), 'Räume');
-  XLSX.utils.book_append_sheet(wb, blatt(hr, [9, 24, 11, 16, 11, 10, 11, 14, 12, 9, 9, 11]), 'Hüllflächen');
+  XLSX.utils.book_append_sheet(wb, blatt(rr, [8, 24, 9, 16, 8, 8, 9, 8, 9, 9, 8, 10, 10, 7, 9, 8, 7, 7, 10, 10, 12, 10, 9, 10, 9, 14, 10, 10]), 'Räume');
+  XLSX.utils.book_append_sheet(wb, blatt(hr, [9, 24, 11, 22, 11, 10, 11, 16, 14, 9, 9, 11]), 'Hüllflächen');
   XLSX.utils.book_append_sheet(wb, blatt(br, [26, 16, 13, 15, 14, 50]), 'Bauteile');
   XLSX.utils.book_append_sheet(wb, blatt(nr, [44, 9, 10, 11, 50, 8]), 'Normwerte');
   wb.Workbook = { CalcPr: { fullCalcOnLoad: true } };
@@ -756,6 +783,8 @@ function start() {
   const eingabe = e => {
     const el = e.target; if (!el.dataset || !el.dataset.b) return;
     if (el.type === 'radio' && !el.checked) return;
+    // Wechsel der Angrenzung: θ_u/θ_j bzw. b_u gehören nicht zusammen → Wertfeld leeren
+    if (/\.an$/.test(el.dataset.b) && hole(el.dataset.b) !== el.value) { setze(el.dataset.b.replace(/\.an$/, '.thetaX'), ''); setze(el.dataset.b.replace(/\.an$/, '.buQuelle'), ''); }
     setze(el.dataset.b, el.type === 'checkbox' ? el.checked : el.value);
     speichern();
     if (e.type === 'input' && el.dataset.r) return; // Neuaufbau erst bei change

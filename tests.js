@@ -19,7 +19,7 @@ function testprojekt() {
   P.normwerte.fg1 = nw('1,45'); P.normwerte.Gw = nw('1'); P.normwerte.rhocp = nw('0,34');
   P.normwerte.e[0].klasse = 'Excel A10'; P.normwerte.e[0].w = nw('0,02');
   P.normwerte.eps[0].klasse = 'Excel A10'; P.normwerte.eps[0].w = nw('1');
-  P.projekt.standortId = st.id; P.projekt.phiWE = '16';
+  P.projekt.standortId = st.id; P.projekt.phiWE = '16'; P.optionen.verfahren = 'excel';
   const bt = (name, U) => { const b = { id: C.neueId('bt'), name, art: name, U, dUWB: '0,05', quelle: 'Excel Eingaben', herkunft: 'manuell' }; P.bauteile.push(b); return b.id; };
   const aw = bt('Außenwand', '0,2'), fe = bt('Fenster', '0,9'), bp = bt('Bodenplatte', '0,25'), iw = bt('Wand zur Gastro', '0,2');
   const r = C.leererRaum();
@@ -100,19 +100,78 @@ const P3 = testprojekt(); P3.raeume[0].flaechen[3].thetaX = '24';
 const R3 = C.rechneRaum(P3.raeume[0], P3);
 pruefe('wärmerer Nachbarraum → Φ negativ', R3.zeilen[3].phi < 0 && R3.zeilen[3].gewinn, true);
 pruefe('Φ_j = 79,5·0,25·(20−24) = −79,5 W', R3.zeilen[3].phi, -79.5, 1e-12);
-const P4 = testprojekt(); P4.optionen.vmin = 'norm'; P4.normwerte.raumarten[0].nmin = nw('0,5');
-const R4 = C.rechneRaum(P4.raeume[0], P4);
-pruefe('Variante V̇_min: max(110,1 ; 1376,4 − 3708) = V̇_inf', R4.w.Vaussen, R.w.Vinf, 1e-12);
-P4.raeume[0].lueftung.Vsu = '0';
-const R4b = C.rechneRaum(P4.raeume[0], P4);
-pruefe('Variante V̇_min ohne Zuluft: V̇ = 0,5 · V_i', R4b.w.Vaussen, 0.5 * R.w.V, 1e-12);
 const P5 = testprojekt(); P5.raeume[0].lueftung.suModus = 'theta'; P5.raeume[0].lueftung.thetaSu = '12,875';
 pruefe('θ_su direkt = θ_e + 0,75·28,5 → gleiches Φ_HL', C.rechneRaum(P5.raeume[0], P5).phiHL, R.phiHL, 1e-12);
 const P6 = testprojekt(); P6.raeume[0].phiRH = '1000';
-pruefe('Φ_RH wird addiert', C.rechneRaum(P6.raeume[0], P6).phiHL, R.phiHL + 1000, 1e-12);
-const P7 = testprojekt(); P7.optionen.erdreich = 'norm';
+pruefe('Φ_RH (ältere Projekte: direkt eingetragen) wird addiert', C.rechneRaum(P6.raeume[0], P6).phiHL, R.phiHL + 1000, 1e-12);
+P6.raeume[0].rhModus = 'fRH'; P6.raeume[0].fRH = '10'; P6.raeume[0].fRHQuelle = 'Test';
+pruefe('Φ_RH = A_R · f_RH = 764,69 · 10', C.rechneRaum(P6.raeume[0], P6).phiRH, 7646.90625, 1e-12);
+const P0 = testprojekt(); P0.optionen.verfahren = '';
+pruefe('ohne gewähltes Verfahren kein Ergebnis', C.rechneRaum(P0.raeume[0], P0).fehlt.some(x => x.pfad === 'projekt.verfahren'), true);
+
+// ── Verfahren DIN EN 12831:2003 (Laasch, Haustechnik, S. 555–559) am Kita-Raum ──
+const P7 = testprojekt(); P7.optionen.verfahren = 'din2003';
+const R7a = C.rechneRaum(P7.raeume[0], P7);
+const fehltText = R7a.fehlt.map(x => x.text).join(' | ');
+pruefe('DIN 2003 verlangt U_equiv für Erdreich', fehltText.includes('U_equiv'), true);
+pruefe('DIN 2003 verlangt V̇_ex', fehltText.includes('V̇_ex'), true);
+pruefe('DIN 2003 verlangt n_min der Raumart', fehltText.includes('n_min'), true);
+// Ergänzung nur für den Formeltest (keine Normwerte): U_equiv 0,2, V̇_ex = V̇_su, n_min 0,3
+Object.assign(P7.raeume[0].flaechen[2], { Uequiv: '0,2', UequivQuelle: 'Test' });
+P7.raeume[0].lueftung.Vex = '3708';
+P7.normwerte.raumarten[0].nmin = nw('0,3');
 const R7 = C.rechneRaum(P7.raeume[0], P7);
-pruefe('Variante Erdreich Norm verlangt U_equiv', R7.fehlt.some(x => x.text.includes('U_equiv')), true);
+pruefe('DIN 2003 vollständig', R7.vollstaendig, true);
+pruefe('DIN 2003 Erdreich: 764,69 · 0,2 · 0,4833 · 28,5', R7.zeilen[2].phi, 764.690625 * 0.2 * 1.45 * (9.5 / 28.5) * 28.5, 1e-12);
+pruefe('DIN 2003 beheizt: U ohne ΔU_WB (θ_j = θ_int → 0 W)', R7.zeilen[3].ukName + '|' + R7.zeilen[3].phi, 'U|0');
+pruefe('DIN 2003 V̇_therm = V̇_inf + V̇_su·f_V,su (V̇_min kleiner)', R7.w.Vtherm, R.w.Vinf + 3708 * 0.25, 1e-12);
+pruefe('DIN 2003 Φ_V = ρc_p · V̇_therm · Δθ = Excel-Φ_V bei ausgeglichener Anlage', R7.phiV, R.phiV, 1e-12);
+P7.raeume[0].lueftung.Vex = '4000';
+pruefe('DIN 2003 Abluftüberschuss V̇_ex − V̇_su = 292 m³/h', C.rechneRaum(P7.raeume[0], P7).w.Vmech, 292, 1e-12);
+P7.raeume[0].lueftung.Vex = '3000';
+pruefe('DIN 2003 Zuluftüberschuss → V̇_mech,inf = 0', C.rechneRaum(P7.raeume[0], P7).w.Vmech, 0);
+P7.raeume[0].lueftung.Vex = '3708'; P7.normwerte.raumarten[0].nmin = nw('2');
+const R7m = C.rechneRaum(P7.raeume[0], P7);
+pruefe('DIN 2003 Mindestluftwechsel maßgebend: V̇_therm = 2 · V_i', R7m.w.Vtherm + '|' + R7m.w.minMassgebend, (2 * R.w.V) + '|true');
+
+// ── Referenzfall Laasch, Haustechnik, 13. Aufl., S. 558: Raum 03 Küche (Stuttgart) ──
+// Eingaben aus Formblatt R 8 / G 1 (S. 554, 558). Werte nur hier im Test.
+function laaschKueche() {
+  const P = C.leeresProjekt(); P.optionen.verfahren = 'din2003';
+  const q = 'Laasch, Haustechnik, S. 554/558';
+  const st = P.normwerte.standorte[0]; st.name = 'Stuttgart'; st.te = nw('-12', q); st.tme = nw('11', q);
+  const ra = P.normwerte.raumarten[0]; ra.name = 'Küche'; ra.tint = nw('20', q); ra.nmin = nw('1,0', q);
+  P.normwerte.rhocp = nw('0,34', 'Laasch S. 556');
+  P.normwerte.e[0].klasse = 'moderat'; P.normwerte.e[0].w = nw('0,03', q);
+  P.normwerte.eps[0].klasse = '0–10 m'; P.normwerte.eps[0].w = nw('1,0', q);
+  P.projekt.standortId = st.id;
+  const bt = (name, U, dU) => { const b = { id: C.neueId('bt'), name, art: name, U, dUWB: dU, quelle: q, herkunft: 'manuell' }; P.bauteile.push(b); return b.id; };
+  const af = bt('AF', '1,40', '0,05'), aw = bt('AW', '0,34', '0,05'), it = bt('IT', '2,00', '0'), iw = bt('IW', '1,88', '0'), fb = bt('FB', '0,66', '0');
+  const r = C.leererRaum();
+  Object.assign(r, { nr: '03', name: 'Küche', raumartId: ra.id, amodus: 'LB', L: '2,51', B: '4,26', hi: '2,56', rhModus: 'fRH', fRH: '9,3', fRHQuelle: q });
+  const fl = (bauteilId, Ab, Az, an, thetaX = '') => Object.assign(C.leereFlaeche(), { bauteilId, Ab, Az, an, thetaX });
+  r.flaechen = [fl(af, '1,7', '0', 'aussen'), fl(aw, '7,3', '1,7', 'aussen'), fl(it, '1,8', '0', 'beheizt', '15'), fl(iw, '11,7', '1,8', 'beheizt', '15'), fl(fb, '10,7', '0', 'beheizt', '10')];
+  Object.assign(r.lueftung, { Vsu: '0', Vex: '0', n50: '1,0', eId: P.normwerte.e[0].id, epsId: P.normwerte.eps[0].id });
+  P.raeume.push(r);
+  return P;
+}
+const PL = laaschKueche(), RL = C.rechneRaum(PL.raeume[0], PL);
+pruefe('Laasch Küche vollständig', RL.vollstaendig, true);
+if (!RL.vollstaendig) console.log(RL.fehlt);
+pruefe('Laasch A_R = 10,69 m²', RL.w.A, 10.69, 0.001);
+pruefe('Laasch V_R = 27,37 m³', RL.w.V, 27.37, 0.001);
+pruefe('Laasch Φ_T AF = 79 W', RL.zeilen[0].phi, 79, 0.01);
+pruefe('Laasch Φ_T AW = 70 W', RL.zeilen[1].phi, 70, 0.01);
+pruefe('Laasch Φ_T IT = 17 W (Buch mit f = 0,15 gerundet; exakt 5/32)', RL.zeilen[2].phi, 17, 0.06);
+pruefe('Laasch Φ_T FB = 70 W', RL.zeilen[4].phi, 70, 0.01);
+pruefe('Laasch V̇_inf = 1,64 m³/h', RL.w.Vinf, 1.64, 0.002);
+pruefe('Laasch V̇_min = V̇_therm = 27,37 m³/h', RL.w.Vtherm, 27.37, 0.001);
+pruefe('Laasch Φ_V = 298 W', RL.phiV, 298, 0.002);
+pruefe('Laasch Φ_RH = A_R · f_RH = 99 W', RL.phiRH, 99, 0.005);
+// Buch, Zeile IW: H_T = 0,28 W/K und Φ = 9 W passen nicht zu A = 9,9 m², f = 0,15, U = 1,88 (ergibt 2,79 W/K bzw. 89 W).
+// Die App rechnet die Zeile nach Formel; daher weicht Σ Φ_T (Buch 245 W) ab:
+pruefe('Laasch IW nach Formel: 9,9 · 1,88 · (20 − 15) = 93,06 W', RL.zeilen[3].phi, 9.9 * 1.88 * 5, 1e-9);
+pruefe('Laasch Σ Φ_T = Buch 245 W − 9 W + 93,06 W (Abweichung nur aus Zeile IW und Rundung f)', RL.phiT, 245 - 9 + 93.06, 0.01);
 // Grundfläche aus Teilflächen
 const P8 = testprojekt(), r8 = P8.raeume[0];
 const tf = (L, B, minus = false) => Object.assign(C.leereTeilflaeche(), { L, B, minus });
