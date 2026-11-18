@@ -156,3 +156,9 @@ Die Eingaben stammen aus Formblatt G 1 (S. 554) und R 8 (S. 558): θ_e −12 °C
 - **Behobener Fehler:** Beim Wechsel der Angrenzung (z. B. „beheizt“ → „b_u aus Tabelle“) blieb der alte Temperaturwert als b_u stehen. Jetzt wird das Feld geleert.
 - **Befund zur Excel-Mappe:** Laasch Tab. 8.40 (nach DIN EN 12831 Bbl. 1) gibt für Wesel θ_e = −10 °C und θ_m,e = 8,1 °C an. Im Excel-Blatt stehen −8,5 °C und 10,5 °C, dort als „aus dem Gedächtnis, prüfen“ vermerkt. Maßgebend für heute sind die Werte nach PLZ aus DIN/TS 12831-1:2020.
 - **Tests:** Heizlast 99/99.
+
+## Nachtrag 18.11.2026: innenliegende Räume
+
+- Neuer Haken im Raumformular: „innenliegend, keine Transmission“. Er gilt für Räume ohne Außenflächen, deren Nachbarräume alle dieselbe Temperatur haben. Dann ist der Raum ohne Hüllflächen vollständig und Φ_T = 0. Die Lüftung wird weiter gerechnet.
+- Sind trotz Haken Flächen eingetragen, meldet die App einen Widerspruch.
+- Im Browser geprüft: Flur 10 × 2 × 3 m ergibt Φ_T = 0 W, der Raum ist vollständig. Raumtabelle und Rechenweg zeigen „innenliegend“ an. Tests: 103/103.

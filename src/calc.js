@@ -151,7 +151,7 @@ function leeresProjekt() {
 function leererRaum() {
   return {
     id: neueId('r'), nr: '', name: '', geschoss: '', raumartId: '', amodus: 'LB', L: '', B: '', A: '', teilflaechen: [], hi: '',
-    flaechen: [],
+    flaechen: [], innenliegend: false,
     lueftung: { Vsu: '', suModus: 'eta', thetaSu: '', eta: '', Vex: '', n50: '', eId: '', epsId: '' },
     rhModus: '', phiRH: '', fRH: '', fRHQuelle: ''
   };
@@ -229,7 +229,9 @@ function rechneRaum(raum, P) {
   // Transmission
   const zeilen = [];
   let tme = NaN, fg1 = NaN, Gw = NaN, erdGeprueft = false;
-  p.bed(raum.flaechen.length > 0, 'raum.flaechen', 'keine Hüllfläche eingetragen');
+  // innenliegender Raum, alle Nachbarräume gleiche Temperatur → keine Transmission
+  if (raum.innenliegend) p.bed(raum.flaechen.length === 0, 'raum.flaechen', '„innenliegend, keine Transmission“ gewählt, aber Hüllflächen eingetragen – Haken entfernen oder Flächen löschen');
+  else p.bed(raum.flaechen.length > 0, 'raum.flaechen', 'keine Hüllfläche eingetragen (bei innenliegendem Raum ohne Temperaturunterschied: Haken „innenliegend“)');
   raum.flaechen.forEach((fl, i) => {
     const fp = `raum.fl.${fl.id}`;
     const nrT = `Fläche ${i + 1}`;
@@ -353,7 +355,7 @@ function rechneRaum(raum, P) {
   const vollstaendig = fehlt.length === 0 && dOK;
   const nurVoll = x => (vollstaendig ? x : NaN);
   return {
-    id: raum.id, vollstaendig, fehlt, hinweise, verfahren: vf,
+    id: raum.id, vollstaendig, fehlt, hinweise, verfahren: vf, innenliegend: !!raum.innenliegend,
     w: { A, L, B, teile, hi, V, te, tint, dth, tme, fg1, Gw, rhocp, Vsu, tsu, eta, fsu, Vex, n50, e: eW, eps: epsW, Vinf, Vmin, nmin, Vmech, Vroh, Vtherm, minMassgebend,
          suModus: lu.suModus, rhModus, fRH, fRHQuelle: raum.fRHQuelle || '',
          raumart: ra ? ra.name : '', standort: st ? st.name : '', eKlasse: eRow ? eRow.klasse : '', epsKlasse: epsRow ? epsRow.klasse : '' },

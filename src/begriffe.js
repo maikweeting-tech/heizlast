@@ -29,6 +29,7 @@ const BEGRIFFE = {
   Ab: { z: 'A_brutto', n: 'Bruttofläche', e: 'm²', t: 'Fläche des Bauteils einschließlich der Öffnungen (Fenster, Türen), die darin liegen.' },
   Az: { z: 'A_Öffn.', n: 'Abzug Öffnungen', e: 'm²', t: 'Fläche der Fenster und Türen, die in diesem Bauteil liegen. Sie werden als eigene Hüllfläche mit ihrem eigenen U-Wert eingetragen. „0“ eintragen, wenn es keine gibt.' },
   An: { z: 'A_k', n: 'Nettofläche', e: 'm²', t: 'Fläche, mit der gerechnet wird: A_k = A_brutto − A_Öffnungen.' },
+  innenliegend: { z: 'Φ_T = 0', n: 'innenliegend, keine Transmission', e: '', t: 'Für Räume ohne Außenflächen, deren Nachbarräume (auch oben und unten) dieselbe Temperatur haben: Dann fließt keine Wärme über die Bauteile, Φ_T = 0. Lüftung (V̇_min, Zuluft) wird trotzdem gerechnet; ohne Öffnungen nach außen ist e = 0 (z. B. Laasch Tab. 8.45, Spalte „keine“). Grenzt der Raum an Erdreich, Unbeheiztes oder Räume mit anderer Temperatur, Flächen eintragen.' },
   ausrichtung: { z: '', n: 'Ausrichtung', e: '', t: 'Himmelsrichtung des Bauteils. Nur zur Dokumentation – auf die Heizlast hat sie keinen Einfluss (Sonne wird bei der Heizlast nicht angerechnet).' },
   angrenzend: { z: '', n: 'angrenzend an', e: '', t: 'Was auf der anderen Seite des Bauteils liegt: außen (Außenluft), Erdreich, unbeheizter Raum (θ_u eingeben oder b_u aus Tabelle) oder beheizter Nachbarraum mit anderer Temperatur (θ_j eingeben). Danach richten sich der Faktor f und – im Verfahren DIN EN 12831:2003 – der U-Wert (U_c, U oder U_equiv).' },
   // Faktoren

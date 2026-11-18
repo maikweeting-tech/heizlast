@@ -307,9 +307,10 @@ function rRaum() {
     </div>
   </div>
   <div class="karte"><h2>Hüllflächen</h2>
-    <div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
+    <label class="haken" style="margin-bottom:8px" data-pf="raum.flaechen"><input type="checkbox" data-b="${e}.innenliegend" data-r="1" ${r.innenliegend ? 'checked' : ''}> innenliegend, keine Transmission (alle Nachbarräume mit gleicher Temperatur) ${info('innenliegend')}</label>
+    ${r.innenliegend && !r.flaechen.length ? '<p class="hinweis">Φ<sub>T</sub> = 0 W. Grenzt der Raum an Nachbarräume mit anderer Temperatur, an Erdreich oder an Unbeheiztes, den Haken entfernen und diese Flächen eintragen.</p>' : `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
     ${fl || '<tr><td colspan="10" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
-    <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>
+    <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>`}
     ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „3 Bauteile“ anlegen.</p>'}
   </div>
   <div class="karte"><h2>Lüftung</h2>
@@ -388,6 +389,7 @@ function rwTabelle(R, papier) {
   const zr = (a, bz, ei, kw, fa, dt, phi, cls = '') => `<tr class="${cls}"><td>${a}</td><td class="${c}">${bz}</td><td>${ei}</td><td class="${c}">${kw}</td><td class="${c}">${fa}</td><td class="${c}">${dt}</td><td class="${c}">${phi}</td></tr>`;
   let h = '';
   R.zeilen.forEach(z => { h += zr(`${esc(z.label)} <small>(${esc(ANGRENZUNG[z.an])}${z.ukName === 'U_equiv' ? ', U_equiv' : ''})</small>`, W(z.bezug, 2), 'm²', W(z.Uk, 3), W(z.f, 3), W(z.dth, 1), `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
+  if (R.innenliegend) h += zr('innenliegend – Nachbarräume mit gleicher Temperatur, keine Transmission', '', '', '', '', '', '0');
   h += zr('<b>Σ Transmission Φ<sub>T</sub></b>', '', '', '', '', '', `<b>${W(R.phiT)}</b>`, papier ? 'zw' : 'summe');
   const w = R.w;
   if (R.verfahren === 'din2003') {
@@ -424,7 +426,8 @@ function fwZeilen(R) {
     if (t.fWerte) z(`f_${k} (${ANGRENZUNG[t.an]}): ${t.fText}`, t.fWerte, `= ${W(t.f, 3)}`);
     z(`Φ_T,${k} = A · ${t.ukName} · f · Δθ  (${t.label})`, `= ${W(t.bezug, 2)} · ${W(t.Uk, 3)} · ${W(t.f, 3)} · ${W(t.dth, 1)}`, `= ${W(t.phi, 1)} W`);
   });
-  z('Φ_T = Σ Φ_T,k', '= ' + R.zeilen.map(t => fmtV(t.phi, 1)).join(' + '), `= ${W(R.phiT, 1)} W`);
+  if (R.innenliegend) z('Φ_T (innenliegend, Nachbarräume gleiche Temperatur)', '= 0', '= 0,0 W');
+  else z('Φ_T = Σ Φ_T,k', '= ' + R.zeilen.map(t => fmtV(t.phi, 1)).join(' + '), `= ${W(R.phiT, 1)} W`);
   gr('Lüftung');
   if (w.Vsu > 0 && w.suModus === 'eta') z('θ_su = θ_e + η_WRG · (θ_int − θ_e)', `= ${fmtV(w.te, 1)} + ${W(w.eta, 2)} · ${W(w.dth, 1)}`, `= ${W(w.tsu, 2)} °C`);
   z('V̇_inf = 2 · V_i · n_50 · e · ε', `= 2 · ${W(w.V, 2)} · ${W(w.n50, 2)} · ${W(w.e, 3)} · ${W(w.eps, 2)}`, `= ${W(w.Vinf, 2)} m³/h`);
@@ -580,7 +583,7 @@ function nachEingabe(el) {
 const tief = o => JSON.parse(JSON.stringify(o));
 function entwurfBenutzt() {
   const r = S.entwurf, l = r.lueftung;
-  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH || r.rhModus || r.fRH ||
+  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH || r.rhModus || r.fRH || r.innenliegend ||
     l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId);
 }
 const AKTION = {

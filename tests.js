@@ -185,6 +185,16 @@ r8.teilflaechen = [tf('5,2', '')];
 pruefe('Teilfläche ohne Breite → Fehlliste', C.rechneRaum(r8, P8).fehlt.some(x => x.text === 'Teilfläche 1: Breite: Eingabe fehlt'), true);
 r8.teilflaechen = [];
 pruefe('keine Teilfläche → Fehlliste', C.rechneRaum(r8, P8).fehlt.some(x => x.text === 'keine Teilfläche eingetragen'), true);
+// innenliegender Raum
+const P9i = testprojekt(), ri = P9i.raeume[0];
+ri.innenliegend = true;
+pruefe('innenliegend mit Flächen → Fehlliste', C.rechneRaum(ri, P9i).fehlt.some(x => x.text.includes('innenliegend')), true);
+ri.flaechen = [];
+const Ri = C.rechneRaum(ri, P9i);
+pruefe('innenliegend ohne Flächen → vollständig, Φ_T = 0', Ri.vollstaendig + '|' + Ri.phiT, 'true|0');
+pruefe('innenliegend: Lüftung bleibt', Ri.phiV, R.phiV, 1e-12);
+ri.innenliegend = false;
+pruefe('ohne Haken und ohne Flächen → Fehlliste', C.rechneRaum(ri, P9i).fehlt.some(x => x.text.startsWith('keine Hüllfläche')), true);
 pruefe('Zahl mit Komma', C.num('1,45'), 1.45);
 pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
 
