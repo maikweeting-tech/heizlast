@@ -280,12 +280,14 @@ const WS_HTML = "<!doctype html>\r\n<html lang=\"de\">\r\n<head>\r\n<meta charse
 const QUELLE_LAASCH = 'Laasch, T.; Laasch, E.: Haustechnik – Grundlagen, Planung, Ausführung. 13. Aufl., Springer Vieweg, Wiesbaden 2013, ISBN 978-3-8348-1260-5, Kap. 8.3 „Heizlast“, S. 535–560';
 const QUELLE_EXCEL = 'TGA_Kita_Wesel_Berechnung_1.xlsx, Blatt „Heizlast“ und „Folienwerte“ (F2_Rechenweg)';
 
-// ── Normstand (online geprüft am 17.11.2026) ─────────────────────────────
+// ── Normstand (online geprüft am 19.11.2026) ─────────────────────────────
 const NORMSTAND = [
-  { norm: 'DIN EN 12831-1:2017-09', status: 'pruefen',
-    text: 'Aktuelle Basisnorm. DIN Media: Produktseite am 17.11.2026 nicht erreichbar (404), Status dort nicht bestätigt. Laut Oschatz (ITG Dresden, 2020) zusammen mit DIN/TS 12831-1 die geltende Regel der Technik; ersetzt DIN EN 12831:2003-08. Ihr allgemeines Lüftungsverfahren ist in dieser App NICHT abgebildet.' },
+  { norm: 'DIN EN 12831-1:2017-09', status: 'geprueft',
+    text: 'DIN Media (19.11.2026): Norm [AKTUELL], ersetzt DIN EN 12831:2003-08; kein Nachfolgedokument genannt. Gilt in Deutschland zusammen mit DIN/TS 12831-1. Ihr allgemeines Lüftungsverfahren ist in dieser App NICHT abgebildet.' },
   { norm: 'DIN/TS 12831-1:2020-04', status: 'geprueft',
-    text: 'DIN Media (17.11.2026): Ausgabe 2020-04, Vornorm, ersetzt DIN EN 12831 Beiblatt 1 bis 3; kein Nachfolgedokument genannt.' },
+    text: 'DIN Media (19.11.2026): Ausgabe 2020-04, Vornorm, ersetzt DIN EN 12831 Beiblatt 1:2008-07 (mit Berichtigung 1:2010-11), Beiblatt 2:2012-05 und Beiblatt 3:2016-12; kein Nachfolgedokument genannt.' },
+  { norm: 'DIN EN 12831-1:2025-06 – Entwurf', status: 'entwurf',
+    text: 'DIN Media (19.11.2026): Norm-Entwurf (prEN 12831-1:2025), erschienen 23.05.2025, noch nicht gültig. Änderungen gegenüber 2017-09 und DIN/TS 12831-1:2020-04: Gleichung (23) korrigiert, Tabelle 33 aktualisiert, redaktionell überarbeitet. Gl. (23) gehört zum allgemeinen Lüftungsverfahren, das hier nicht abgebildet ist.' },
   { norm: 'DIN EN 12831:2003-08 mit Beiblatt 1', status: 'ersetzt',
     text: 'Rechenweg dieser App (Verfahren „DIN EN 12831:2003“), belegt durch ' + QUELLE_LAASCH + '. Diese Ausgabe ist durch DIN EN 12831-1:2017 und DIN/TS 12831-1:2020 ersetzt.' }
 ];
@@ -913,7 +915,7 @@ function zeigeInfo(el) {
   box.style.top = (unten + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 8) : unten) + 'px';
 }
 function schliesseInfo() { const box = $('infobox'); if (box) { box.hidden = true; box._von = null; } }
-const normBadge = n => (n.status === 'geprueft' ? ['ok', '✓ geprüft'] : n.status === 'ersetzt' ? ['pr', 'ersetzt'] : ['pr', 'prüfen']);
+const normBadge = n => (n.status === 'geprueft' ? ['ok', '✓ geprüft'] : n.status === 'ersetzt' ? ['pr', 'ersetzt'] : n.status === 'entwurf' ? ['pr', 'Entwurf'] : ['pr', 'prüfen']);
 function nachweisText() {
   if (!G.summe) return 'Σ Φ_HL fehlt (Räume unvollständig oder keine Räume)';
   if (!G.nachweis) return 'Φ_WE fehlt';

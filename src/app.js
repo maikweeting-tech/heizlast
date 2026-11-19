@@ -162,7 +162,7 @@ function zeigeInfo(el) {
   box.style.top = (unten + h > window.innerHeight - 8 ? Math.max(8, r.top - h - 8) : unten) + 'px';
 }
 function schliesseInfo() { const box = $('infobox'); if (box) { box.hidden = true; box._von = null; } }
-const normBadge = n => (n.status === 'geprueft' ? ['ok', '✓ geprüft'] : n.status === 'ersetzt' ? ['pr', 'ersetzt'] : ['pr', 'prüfen']);
+const normBadge = n => (n.status === 'geprueft' ? ['ok', '✓ geprüft'] : n.status === 'ersetzt' ? ['pr', 'ersetzt'] : n.status === 'entwurf' ? ['pr', 'Entwurf'] : ['pr', 'prüfen']);
 function nachweisText() {
   if (!G.summe) return 'Σ Φ_HL fehlt (Räume unvollständig oder keine Räume)';
   if (!G.nachweis) return 'Φ_WE fehlt';
