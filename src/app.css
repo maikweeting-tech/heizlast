@@ -124,6 +124,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .blatt.png-modus { width: 210mm !important; padding: 16mm 15mm 14mm !important; box-shadow: none; }
 .blatt h2 { font-size: 11pt; color: var(--p-navy); border-bottom: 2px solid var(--p-navy); padding-bottom: 2px; margin: 14px 0 6px; break-after: avoid; }
 .blatt h2 .nr { color: var(--p-rot); margin-right: 6px; }
+.blatt h3.rw-raum { font-size: 9.5pt; color: var(--p-navy); margin: 12px 0 4px; break-after: avoid; }
+.vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
 .blatt p { margin: 0 0 5px; }
 .blatt table { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin-bottom: 4px; }
 .blatt th, .blatt td { border: 0.5pt solid var(--p-linie); padding: 2.5px 5px; text-align: left; vertical-align: top; }

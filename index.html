@@ -134,6 +134,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .blatt.png-modus { width: 210mm !important; padding: 16mm 15mm 14mm !important; box-shadow: none; }
 .blatt h2 { font-size: 11pt; color: var(--p-navy); border-bottom: 2px solid var(--p-navy); padding-bottom: 2px; margin: 14px 0 6px; break-after: avoid; }
 .blatt h2 .nr { color: var(--p-rot); margin-right: 6px; }
+.blatt h3.rw-raum { font-size: 9.5pt; color: var(--p-navy); margin: 12px 0 4px; break-after: avoid; }
+.vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
 .blatt p { margin: 0 0 5px; }
 .blatt table { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin-bottom: 4px; }
 .blatt th, .blatt td { border: 0.5pt solid var(--p-linie); padding: 2.5px 5px; text-align: left; vertical-align: top; }
@@ -418,8 +420,8 @@ function leeresProjekt() {
       eps: [{ id: neueId('ep'), klasse: '', w: leerNW() }]
     },
     bauteile: [],
-    raeume: [],
-    vorzeigeRaum: ''
+    raeume: []
+    // vorzeigeRaeume: [Raum-IDs] wird beim ersten Öffnen der Vorzeigeseite gesetzt (Standard: erster Raum)
   };
 }
 function leererRaum() {
@@ -1202,19 +1204,31 @@ function fwZeilen(R) {
 
 // ── 6 Vorzeigeseite ───────────────────────────────────────────────────────
 function rVorzeige() {
-  const opts = [['', '— Raum für den Rechenweg —']].concat(S.raeume.map(r => [r.id, `${r.nr} ${r.name}`]));
-  if (!S.vorzeigeRaum && S.raeume[0]) S.vorzeigeRaum = S.raeume[0].id;
-  return `<div class="karte vorzeige-steuerung no-print"><div class="reihe">
-      <label class="feld">Rechenweg zeigen für ${sel('vorzeigeRaum', '', opts)}</label>
-      <div class="knoepfe" style="align-items:end;margin-bottom:12px"><button class="btn btn-primaer" data-a="drucken">Drucken / als PDF speichern</button><button class="btn" data-a="png">Als PNG speichern</button></div></div>
+  const gew = vorzeigeAuswahl();
+  const liste = S.raeume.map(r => `<label class="haken"><input type="checkbox" data-a="vz-raum" data-id="${r.id}" ${gew.includes(r.id) ? 'checked' : ''}> ${esc(r.nr)} ${esc(r.name)}</label>`).join('');
+  return `<div class="karte vorzeige-steuerung no-print">
+      <div class="feld">Rechenweg (Abschnitt 4) zeigen für <span class="einh">${gew.length} von ${S.raeume.length} Räumen</span></div>
+      <div class="vz-raeume">${liste || '<span class="klein">Noch keine Räume angelegt.</span>'}</div>
+      <div class="knoepfe" style="margin:8px 0 12px"><button class="btn btn-klein" data-a="vz-alle">Alle Räume</button><button class="btn btn-klein" data-a="vz-keine">Keinen Raum</button></div>
+      <div class="knoepfe" style="margin-bottom:12px"><button class="btn btn-primaer" data-a="drucken">Drucken / als PDF speichern</button><button class="btn" data-a="png">Als PNG speichern</button></div>
     <p class="hinweis klein">Druck: A4 hoch, Ränder „Standard“, Kopf- und Fußzeilen des Browsers ausschalten (Seitenzahlen setzt die Seite selbst).</p></div>
   <div class="blattwrap"><article class="blatt" id="blatt">${blattHtml()}</article></div>`;
+}
+// Auswahl der Räume für den Rechenweg; alte Projekte mit einem Raum (vorzeigeRaum) werden übernommen
+function vorzeigeAuswahl() {
+  if (!Array.isArray(S.vorzeigeRaeume)) {
+    if (!S.raeume.length) return [];
+    S.vorzeigeRaeume = S.raeume.some(r => r.id === S.vorzeigeRaum) ? [S.vorzeigeRaum] : [S.raeume[0].id];
+    delete S.vorzeigeRaum;
+  }
+  const ids = new Set(S.raeume.map(r => r.id));
+  S.vorzeigeRaeume = S.vorzeigeRaeume.filter(id => ids.has(id));
+  return S.vorzeigeRaeume;
 }
 function blattHtml() {
   const P = S.projekt, st = S.normwerte.standorte.find(s => s.id === P.standortId);
   const sum = G.summe, N = S.normwerte;
-  const RV = G.raeume.find(r => r.id === S.vorzeigeRaum);
-  const rv = S.raeume.find(r => r.id === S.vorzeigeRaum);
+  const gew = vorzeigeAuswahl();
   const stTxt = n => { const [c, t] = nwStatus(n); return `<span class="${c}">${t}</span>`; };
   const v = (x, d) => (ok(x) ? W(x, d) : '–');
   // verwendete Normwerte
@@ -1233,14 +1247,16 @@ function blattHtml() {
   const varTxt = vf ? `<li><b>${esc(vf.titel)}</b>: ${idx(esc(vf.text))}</li><li>Nicht abgebildet: ${idx(esc(HINWEIS_2017))}</li>` : '<li><span class="no">Kein Rechenverfahren gewählt.</span></li>';
   const raeumeHtml = G.raeume.map((R, i) => { const r = S.raeume[i]; return `<tr><td>${esc(r.nr)}</td><td>${esc(r.name)}</td><td class="z">${v(R.w.A, 2)}</td><td class="z">${v(R.w.V, 1)}</td><td class="z">${v(R.w.tint, 1)}</td><td class="z">${v(R.phiT, 0)}</td><td class="z">${v(R.phiV, 0)}</td><td class="z">${R.vollstaendig && R.rhGesetzt ? v(R.phiRH, 0) : '–'}</td><td class="z"><b>${v(R.phiHL, 0)}</b></td><td class="z">${v(R.phiSpez, 1)}</td><td>${R.vollstaendig ? '<span class="ok">vollst.</span>' : '<span class="no">unvollst.</span>'}</td></tr>`; }).join('');
   const btHtml = S.bauteile.map(b => { const u = num(b.U), d = num(b.dUWB); return `<tr><td>${esc(b.name)}</td><td>${esc(b.art)}</td><td class="z">${v(u, 3)}</td><td class="z">${v(d, 3)}</td><td class="z"><b>${v(u + d, 3)}</b></td><td>${esc(b.quelle)}${b.dUWBQuelle ? '; ΔU_WB: ' + esc(b.dUWBQuelle) : ''}</td></tr>`; }).join('');
-  let rw = '<p>Kein Raum gewählt.</p>';
-  if (RV && rv) {
-    rw = RV.vollstaendig
-      ? `<div class="block"><h2><span class="nr">4</span>Rechenweg (Formel → Werte → Ergebnis)</h2><p><b>Raum ${esc(rv.nr)} – ${esc(rv.name)}</b>${rv.geschoss ? ', ' + esc(rv.geschoss) : ''}; Raumart ${esc(RV.w.raumart)}</p>
-         ${rwTabelle(RV, true).replace(/class="tab"/, '')}</div>
+  const rwH2 = '<h2><span class="nr">4</span>Rechenweg (Formel → Werte → Ergebnis)</h2>';
+  // Reihenfolge wie in der Raumtabelle; h2 steht im ersten Block, damit er nicht allein am Seitenende bleibt
+  const rwTeile = S.raeume.map((rv, i) => [rv, G.raeume[i]]).filter(([rv]) => gew.includes(rv.id)).map(([rv, RV], k) => {
+    const kopf = (k ? '' : rwH2) + `<h3 class="rw-raum">Raum ${esc(rv.nr)} – ${esc(rv.name)}${rv.geschoss ? ', ' + esc(rv.geschoss) : ''}${RV.vollstaendig ? '; Raumart ' + esc(RV.w.raumart) : ''}</h3>`;
+    return RV.vollstaendig
+      ? `<div class="block">${kopf}${rwTabelle(RV, true).replace(/class="tab"/, '')}</div>
          <table class="fw">${fwZeilen(RV).map(z => z.length === 1 ? `<tr class="gr"><td colspan="3">${esc(z[0])}</td></tr>` : `<tr><td>${idx(esc(z[0]))}</td><td>${idx(esc(z[1]))}</td><td class="erg">${idx(esc(z[2]))}</td></tr>`).join('')}</table>`
-      : `<div class="warn"><b>Raum ${esc(rv.nr)} ist unvollständig – kein Rechenweg.</b><ul>${RV.fehlt.map(x => `<li>${idx(esc(x.text))}</li>`).join('')}</ul></div>`;
-  }
+      : `<div class="block">${kopf}<div class="warn"><b>Raum ${esc(rv.nr)} ist unvollständig – kein Rechenweg.</b><ul>${RV.fehlt.map(x => `<li>${idx(esc(x.text))}</li>`).join('')}</ul></div></div>`;
+  });
+  const rw = rwTeile.length ? rwTeile.join('') : rwH2 + '<p>Kein Raum gewählt.</p>';
   const nw = G.nachweis;
   const quellen = [];
   NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${normBadge(n)[0]}">${normBadge(n)[1]}</span>: ${esc(n.text)}</li>`));
@@ -1276,7 +1292,6 @@ function blattHtml() {
   <tbody>${raeumeHtml || '<tr><td colspan="11">–</td></tr>'}
   <tr class="summe"><td></td><td>Summe</td><td class="z">${sum ? W(sum.A, 2) : '–'}</td><td class="z">${sum ? W(sum.V, 1) : '–'}</td><td></td><td class="z">${sum ? W(sum.phiT) : '–'}</td><td class="z">${sum ? W(sum.phiV) : '–'}</td><td class="z">${sum ? W(sum.phiRH) : '–'}</td><td class="z">${sum ? W(sum.phiHL) : '–'}</td><td class="z">${sum ? W(sum.phiSpez, 1) : '–'}</td><td></td></tr>
   <tr class="ges"><td></td><td colspan="7">Gebäudeheizlast Σ Φ<sub>HL</sub> (ohne Abminderungen)</td><td class="z" colspan="2">${sum ? W(sum.phiHL / 1000, 2) + ' kW' : '–'}</td><td></td></tr></tbody></table>
-  ${RV && RV.vollstaendig ? '' : '<h2><span class="nr">4</span>Rechenweg (Formel → Werte → Ergebnis)</h2>'}
   ${rw}
   <h2><span class="nr">5</span>Nachweis</h2>
   <div class="block"><table><thead><tr><th>Nachweis</th><th class="z">E<sub>d</sub> in kW</th><th class="z">R<sub>d</sub> in kW</th><th class="z">η = E<sub>d</sub> / R<sub>d</sub></th><th>erfüllt (η ≤ 1,0)</th></tr></thead>
@@ -1340,6 +1355,9 @@ function entwurfBenutzt() {
     l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId);
 }
 const AKTION = {
+  'vz-raum'(d) { const g = vorzeigeAuswahl(); S.vorzeigeRaeume = g.includes(d.id) ? g.filter(x => x !== d.id) : g.concat(d.id); },
+  'vz-alle'() { S.vorzeigeRaeume = S.raeume.map(r => r.id); },
+  'vz-keine'() { S.vorzeigeRaeume = []; },
   'bt-neu'() { S.bauteile.push({ id: neueId('bt'), name: '', art: '', U: '', dUWB: '', quelle: '', dUWBQuelle: '', herkunft: 'manuell' }); },
   'bt-weg'(d) {
     const benutzt = S.raeume.concat([S.entwurf]).filter(r => r.flaechen.some(f => f.bauteilId === d.id));

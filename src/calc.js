@@ -146,8 +146,8 @@ function leeresProjekt() {
       eps: [{ id: neueId('ep'), klasse: '', w: leerNW() }]
     },
     bauteile: [],
-    raeume: [],
-    vorzeigeRaum: ''
+    raeume: []
+    // vorzeigeRaeume: [Raum-IDs] wird beim ersten Öffnen der Vorzeigeseite gesetzt (Standard: erster Raum)
   };
 }
 function leererRaum() {
