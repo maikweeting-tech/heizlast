@@ -433,7 +433,7 @@ function rwTabelle(R, papier) {
   const w = R.w;
   if (R.verfahren === 'dints2020') {
     h += zr(`Leckage q<sub>V,env</sub> = f<sub>env</sub> · q<sub>env,50</sub> · A<sub>env</sub> (A<sub>env</sub> = ${W(w.Aenv, 2)} m²)`, W(w.qenv, 2), 'm³/h', '', '', '', '');
-    h += zr(`Mindestluft q<sub>V,min</sub> − q<sub>V,techn</sub> = ${W(w.Vmin, 1)} − ${W(w.qtechn, 1)}`, W(w.Vmin - w.qtechn, 1), 'm³/h', '', '', '', '');
+    h += zr(`Mindestluft q<sub>V,min</sub> − q<sub>V,techn</sub> = ${W(w.Vmin, 1)} − ${W(w.qtechn, 1)}${w.Vmin - w.qtechn <= 0 ? ' – von der Anlage gedeckt' : ''}`, W(w.Vmin - w.qtechn, 1), 'm³/h', '', '', '', '');
     h += zr(`q<sub>V,env/min</sub> = max(…)${w.minMassgebend ? ' – Mindestluft maßgebend' : ''}`, W(w.qenvmin, 2), 'm³/h', W(w.rhocp, 2), '1', W(w.dth, 1), W(R.PhiVenv));
     if (w.Vsu > 0) h += zr('Zuluft V̇<sub>su</sub>' + (w.suModus === 'eta' ? ' (WRG)' : '') + ` mit θ<sub>su</sub> = ${W(w.tsu, 1)} °C`, W(w.Vsu, 0), 'm³/h', W(w.rhocp, 2), '1', W(w.tint - w.tsu, 1), W(R.PhiVsu));
     if (w.Vtr > 0) h += zr(`Überströmluft V̇<sub>tr</sub> mit θ<sub>tr</sub> = ${W(w.ttr, 1)} °C`, W(w.Vtr, 0), 'm³/h', W(w.rhocp, 2), '1', W(w.tint - w.ttr, 1), W(R.PhiVtr));
@@ -813,6 +813,11 @@ function exportXlsx() {
   // Räume und Hüllflächen
   const hr = [[kopfz[0]], [kopfz[1]], [], ['Raum-Nr.', 'Bauteil', 'Ausrichtung', 'angrenzend an', 'A brutto in m²', 'Abzug in m²', 'A netto in m²', 'U_k (U_c / U / U_equiv) in W/(m²·K)', 'θ_u / θ_j in °C bzw. b_u', 'f in –', 'Δθ in K', 'Φ_T in W']];
   const rr = [[kopfz[0]], [kopfz[1]], [], ['Nr.', 'Raum', 'Geschoss', 'Raumart', 'L in m', 'B in m', 'A in m²', 'h_i in m', 'V in m³', 'θ_int in °C', 'Δθ in K', 'Φ_T in W', 'V̇_su in m³/h', 'η_WRG', 'θ_su in °C', 'n_50 in 1/h', 'e', 'ε', 'V̇_inf in m³/h', 'V̇_min in m³/h', 'V̇_therm bzw. V̇_inf in m³/h', 'Φ_V in W', 'Φ_RH in W', 'Φ_HL in W', 'φ in W/m²', 'Status', 'V̇_ex in m³/h', 'f_RH in W/m²']];
+  if (S.optionen.verfahren === 'dints2020') {
+    // Lüftungsspalten beim Verfahren DIN/TS anders belegt (Werte ohne Formel)
+    const k = rr[3];
+    k[15] = '–'; k[16] = '–'; k[17] = '–'; k[18] = '–'; k[19] = 'q_V,min = n_min · V in m³/h'; k[20] = 'q_V,env/min in m³/h'; k[21] = 'Φ_V = Φ_V,env + Φ_V,su + Φ_V,tr in W';
+  }
   const R0 = rr.length + 1;
   G.raeume.forEach((R, i) => {
     const r = S.raeume[i], z = R0 + i, v = R.vollstaendig, w = R.w;
