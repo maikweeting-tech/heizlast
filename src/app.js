@@ -251,6 +251,30 @@ function aufbauTabelle(b, sch) {
   return `<details class="aufbau"><summary>Aufbau: ${sch.length} Schicht${sch.length === 1 ? '' : 'en'} (innen → außen)${ok(b.RT) ? ` · R<sub>T</sub> = ${W(b.RT, 3)} m²K/W` : ''}${ok(b.dU) && b.dU ? ` · ΔU = ${W(b.dU, 3)}` : ''}</summary>
     <table class="tab klein"><tr><th>Nr.</th><th>Schicht</th><th class="zahl">d in cm</th><th class="zahl">λ in W/(m·K)</th><th class="zahl">R in m²K/W</th><th>Quelle λ</th></tr>${z}</table></details>`;
 }
+// Wärmeschutznachweise der Bauteile (aus der Wärmeschutz-App übergeben) für die Vorzeigeseite
+function bauteilNachweiseHtml() {
+  const ws = S.bauteile.filter(b => b.herkunft === 'waermeschutz' && !(b.art === 'Fenster' || b.art === 'Außentür'));
+  if (!ws.length) return '';
+  const v = (x, d) => (ok(x) ? W(x, d) : '–');
+  const ja = (okk, t) => `<span class="${okk ? 'ok' : 'no'}">${okk ? '✓' : '✗'} ${t}</span>`;
+  const zeilen = ws.map(b => {
+    const n = b.nachweis;
+    if (!n) return `<tr><td>${esc(b.name)}</td><td colspan="4"><i>Nachweise nicht übergeben – Bauteil im Tab „2 Wärmeschutz“ berechnen und neu übergeben.</i></td></tr>`;
+    const m = n.min, g = n.gmodg, s = n.schimmel, gl = n.glaser;
+    const minT = m ? `R = ${v(m.Rvorh, 2)} ≥ R<sub>min</sub> = ${v(m.rmin, 2)}<br>${ja(m.ok, m.ok ? 'erfüllt' : 'nicht erfüllt')}` : '–';
+    const gT = !g ? '–' : g.fall === 'neubau' ? `U = ${v(g.Ur, 2)} / U<sub>Ref</sub> = ${v(g.umax, 2)}<br>${ja(g.ok, g.ok ? 'Referenz erreicht' : 'Referenz verfehlt')}`
+      : g.keine ? `Anl. 7 Nr. ${esc(g.nr)}: keine Anforderung` : `U = ${v(g.Ur, 2)} ≤ U<sub>max</sub> = ${v(g.umax, 2)} (Anl. 7 Nr. ${esc(g.nr)})<br>${ja(g.ok, g.ok ? 'erfüllt' : 'nicht erfüllt')}`;
+    const sT = s ? `θ<sub>si</sub> = ${v(s.thetaSi, 1)} ≥ ${v(s.thetaMin, 1)} °C, f<sub>Rsi</sub> = ${v(s.fRsi, 2)}<br>${ja(s.ok, s.ok ? 'kein Schimmel' : 'Schimmelgefahr')}` : '–';
+    const glT = !gl ? '–' : gl.muFehlt ? `μ fehlt: ${esc(gl.muFehlt.join(', '))}`
+      : !gl.tauwasser ? `kein Tauwasser<br>${ja(true, 'erfüllt')}`
+      : `M<sub>c</sub> = ${v(gl.mc, 3)} ≤ ${v(gl.mcGrenze, 3)} kg/m²<br>M<sub>ev</sub> = ${v(gl.mev, 3)} ≥ M<sub>c</sub><br>${ja(gl.ok, gl.ok ? 'zulässig' : 'unzulässig')}`;
+    const rb = n.rb ? `<div class="aufbau-kurz">θ<sub>i</sub> ${v(n.rb.ti, 1)} °C / θ<sub>e</sub> ${v(n.rb.te, 1)} °C${m && m.din ? ` · DIN 4108-2:${esc(m.din)}` : ''}</div>` : '';
+    return `<tr><td>${esc(b.name)}${rb}</td><td>${minT}</td><td>${gT}</td><td>${sT}</td><td>${glT}</td></tr>`;
+  }).join('');
+  return `<h3 class="rw-raum">Wärmeschutznachweise der Bauteile (aus Tab „2 Wärmeschutz“)</h3>
+  <table class="nachweise"><thead><tr><th>Bauteil</th><th>Mindestwärmeschutz DIN 4108-2<br>R in m²K/W</th><th>GModG<br>U in W/(m²·K)</th><th>Schimmel (Fläche)</th><th>Tauwasser Glaser DIN 4108-3</th></tr></thead><tbody>${zeilen}</tbody></table>
+  <p style="font-size:7.8pt;color:#5b6470">Ausführliche Rechnung (Temperaturverlauf, Glaser-Diagramm) im Ausdruck der Wärmeschutz-App. Schimmelnachweis für die ungestörte Fläche (θ<sub>i</sub> 20 °C, φ<sub>i</sub> 50 %, θ<sub>e</sub> −5 °C).</p>`;
+}
 // Kurzform für die Vorzeigeseite
 function aufbauKurz(b) {
   if (b.herkunft !== 'waermeschutz') return esc(b.aufbau || '');
@@ -600,6 +624,7 @@ function blattHtml() {
   <h2><span class="nr">2</span>Bauteilkatalog</h2>
   <table><thead><tr><th>Bauteil</th><th>Art</th><th class="z">U</th><th class="z">ΔU<sub>WB</sub></th><th class="z">U<sub>c</sub></th><th>Quelle</th></tr></thead><tbody>${btHtml || '<tr><td colspan="6">–</td></tr>'}</tbody></table>
   <p style="font-size:7.8pt;color:#5b6470">U, ΔU<sub>WB</sub>, U<sub>c</sub> in W/(m²·K); U<sub>c</sub> = U + ΔU<sub>WB</sub>.</p>
+  ${bauteilNachweiseHtml()}
   <h2><span class="nr">3</span>Raumtabelle</h2>
   <table><thead><tr><th>Nr.</th><th>Raum</th><th class="z">A in m²</th><th class="z">V in m³</th><th class="z">θ<sub>int</sub> in °C</th><th class="z">Φ<sub>T</sub> in W</th><th class="z">Φ<sub>V</sub> in W</th><th class="z">Φ<sub>RH</sub> in W</th><th class="z">Φ<sub>HL</sub> in W</th><th class="z">φ in W/m²</th><th>Status</th></tr></thead>
   <tbody>${raeumeHtml || '<tr><td colspan="11">–</td></tr>'}
@@ -750,7 +775,7 @@ function uebernimmBauteile(liste, ausRahmen = false) {
     const b = bauteilAusWaermeschutz(x); if (!b) return;
     if (b.ungeprueft.length) ungeprueft++;
     const alt = S.bauteile.find(y => y.herkunft === 'waermeschutz' && y.name === b.name);
-    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false, schichten: b.schichten, RT: b.RT, dU: b.dU, wsZustand: b.wsZustand }); akt++; }
+    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false, schichten: b.schichten, RT: b.RT, dU: b.dU, wsZustand: b.wsZustand, nachweis: b.nachweis }); akt++; }
     else { S.bauteile.push(b); neu++; }
   });
   speichern();

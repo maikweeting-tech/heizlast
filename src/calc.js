@@ -479,7 +479,22 @@ function bauteilAusWaermeschutz(b) {
            // Schichtaufbau innen → außen (d in cm), nur zur Anzeige
            schichten: schichtenAus(b.schichten), RT: ok(num(b.RT)) ? num(b.RT) : null, dU: ok(num(b.dU)) ? num(b.dU) : null,
            // vollständige Eingaben der Wärmeschutz-App (Randbedingungen + Schichten) zum späteren Bearbeiten
-           wsZustand: wsZustandAus(b.zustand) };
+           wsZustand: wsZustandAus(b.zustand),
+           // Ergebnisse Mindestwärmeschutz, GModG, Schimmel, Glaser (für die Vorzeigeseite)
+           nachweis: nachweisAus(b.nachweis) };
+}
+function nachweisAus(n) {
+  if (!n || typeof n !== 'object') return null;
+  const z = v => (typeof v === 'number' && isFinite(v) ? v : null), t = v => String(v == null ? '' : v), j = v => !!v;
+  const o = (x, f) => (x && typeof x === 'object' ? f(x) : null);
+  return {
+    rb: o(n.rb, x => ({ ti: z(x.ti), te: z(x.te), raum: t(x.raum), richtung: t(x.richtung) })),
+    min: o(n.min, x => ({ rmin: z(x.rmin), Rvorh: z(x.Rvorh), eta: z(x.eta), ok: j(x.ok), zeile: t(x.zeile), text: t(x.text), din: t(x.din) })),
+    gmodg: o(n.gmodg, x => ({ fall: t(x.fall), Ur: z(x.Ur), umax: z(x.umax), ok: j(x.ok), keine: j(x.keine), nr: t(x.nr), text: t(x.text), zone: t(x.zone) })),
+    schimmel: o(n.schimmel, x => ({ thetaSi: z(x.thetaSi), thetaMin: z(x.thetaMin), fRsi: z(x.fRsi), ok: j(x.ok) })),
+    glaser: o(n.glaser, x => (Array.isArray(x.muFehlt) ? { muFehlt: x.muFehlt.map(t) }
+      : { tauwasser: j(x.tauwasser), mc: z(x.mc), mev: z(x.mev), mcGrenze: z(x.mcGrenze), okMc: j(x.okMc), okEv: j(x.okEv), ok: j(x.ok), ebenen: z(x.ebenen) }))
+  };
 }
 function wsZustandAus(z) {
   if (!z || typeof z !== 'object' || !z.f || typeof z.f !== 'object' || !Array.isArray(z.s)) return null;

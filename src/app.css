@@ -160,6 +160,8 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .aufbau-feld input { flex: 1; }
 .aufbau-knopf { margin-top: 6px; }
 .blatt .aufbau-kurz { font-size: 7.5pt; color: #5b6470; }
+.blatt table.nachweise td { font-size: 7.6pt; vertical-align: top; }
+.blatt table.nachweise th { font-size: 7.4pt; }
 .vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
 .blatt p { margin: 0 0 5px; }
 .blatt table { width: 100%; border-collapse: collapse; font-size: 8.6pt; margin-bottom: 4px; }

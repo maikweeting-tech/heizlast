@@ -99,6 +99,10 @@ pruefe('Import: ohne Schichten leere Liste', b2.schichten.length, 0);
 const b4 = C.bauteilAusWaermeschutz({ name: 'AW', U: 0.2, zustand: { f: { raum: 'normal', 'bef-aktiv': false, 'theta-i': 20 }, s: [['baustoff', '', 'KS', 17.5, '0,99', 'DIN 4108-4', 5]] } });
 pruefe('Import: Wärmeschutz-Eingaben zum Bearbeiten gespeichert', JSON.stringify(b4.wsZustand), '{"f":{"raum":"normal","bef-aktiv":false,"theta-i":"20"},"s":[["baustoff","","KS","17.5","0,99","DIN 4108-4","5"]]}');
 pruefe('Import: ohne Eingaben kein Bearbeiten', b2.wsZustand, null);
+const b5 = C.bauteilAusWaermeschutz({ name: 'AW', U: 0.2, nachweis: { min: { rmin: 1.2, Rvorh: 4.6, ok: true, zeile: '1', din: '2013-02' },
+  glaser: { tauwasser: true, mc: 0.12, mev: 0.5, mcGrenze: 1, ok: true }, schimmel: { thetaSi: 19.2, thetaMin: 12.6, ok: true }, boese: '<x>' } });
+pruefe('Import: Nachweise übernommen', [b5.nachweis.min.Rvorh, b5.nachweis.min.ok, b5.nachweis.glaser.mc, b5.nachweis.schimmel.thetaSi, b5.nachweis.gmodg].join('|'), '4.6|true|0.12|19.2|');
+pruefe('Import: ohne Nachweise null', b2.nachweis, null);
 pruefe('Import: ungültiges Bauteil abgelehnt', C.bauteilAusWaermeschutz({ name: 'x' }), null);
 
 // ── Sonderfälle ────────────────────────────────────────────────────────────
