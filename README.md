@@ -8,10 +8,11 @@ Die App ist eine einzige Datei, `index.html`. Sie läuft offline und speichert i
 
 Im Tab „1 Projekt“ wird eines gewählt:
 
+- **DIN/TS 12831-1:2020**: Lüftung über die Hüllfläche (q_env,50, f_env, A_env), Zuluft mit WRG-Temperatur, Überströmluft, Gebäudeheizlast mit f_Geb. Rechenweg aus dem wbs-Musterbeispiel rückgerechnet; Referenzfall 13 Räume, 5 696 W (`pruefung/referenz_wbs_efh.json`, erzeugt mit `node pruefung/wbs_musterbeispiel.js`). f_env und f_Geb sind ohne Normtext nicht belegt.
 - **DIN EN 12831:2003 mit Beiblatt 1**, nach Laasch, T.; Laasch, E.: *Haustechnik*, 13. Aufl., Springer Vieweg 2013, Kap. 8.3. Rechnet mit Mindestluftwechsel, Abluftüberschuss, U_equiv und f_RH. Referenzfall: Küche S. 558 (`pruefung/referenz_laasch_kueche.json`).
 - **Excel-Blatt „Heizlast“**: Testfall Kita Wesel, 18,29 kW (`pruefung/testprojekt_kita_eg.json`).
 
-Nicht abgebildet ist das allgemeine Lüftungsverfahren der aktuellen DIN EN 12831-1:2017.
+Das allgemeine Lüftungsverfahren der DIN EN 12831-1:2017 (Gl. 18–31, Tab. B.8, B.2.14) ist nicht gegen den Normtext geprüft. Das Verfahren DIN/TS bildet nur den Rechenweg des wbs-Musterbeispiels nach.
 
 ## Grundregel: keine Annahmen
 

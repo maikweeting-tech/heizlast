@@ -220,6 +220,31 @@ pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
   pruefe('Wärmeschutz eingebettet: keine externen Dateien', /<script src=|<link rel="stylesheet" href=/.test(ctx.WS_HTML), false);
 }
 
+// ── Referenzfall wbs-Musterbeispiel DIN/TS 12831-1:2020 (13 Räume, Soll 5 696 W) ──
+{
+  const W = require('./pruefung/wbs_musterbeispiel.js');
+  const P = W.projekt(), G = C.rechneGebaeude(P);
+  pruefe('wbs: alle 13 Räume vollständig', G.alle, true);
+  G.raeume.forEach((x, i) => pruefe(`wbs: Φ_HL Raum ${P.raeume[i].nr} = ${W.SOLL.raeume[P.raeume[i].nr]} W (±2 W)`, Math.abs(x.phiHL - W.SOLL.raeume[P.raeume[i].nr]) <= 2, true));
+  pruefe('wbs: E-1 Leckage q_V,env = 0,1 · 2 · A_env = 19,7 m³/h', Math.round(G.raeume[0].w.qenvmin * 10) / 10, 19.7);
+  pruefe('wbs: E-6 Mindestluft maßgebend 0,5 · 21,24 m³ = 10,6 m³/h', Math.round(G.raeume[5].w.qenvmin * 10) / 10 + '|' + G.raeume[5].w.minMassgebend, '10.6|true');
+  pruefe('wbs: E-1 Zuluft 40 · 0,34 · (20 − 17,8) = 29,9 W', Math.round(G.raeume[0].PhiVsu * 10) / 10, 29.9);
+  pruefe('wbs: 1-6 Überströmung 40 · 0,34 · (24 − 20) = 54,4 W', Math.round(G.raeume[11].PhiVtr * 10) / 10, 54.4);
+  pruefe('wbs: Σ Φ_T,stand ≈ 5 229 W', G.summe.phiT, W.SOLL.phiTstand, 0.002);
+  pruefe('wbs: Φ_T,e (nach außen) ≈ 4 979 W', G.geb.phiTe, W.SOLL.phiTe, 0.002);
+  pruefe('wbs: Σ Φ_V,env/min ≈ 1 097 W', G.geb.PhiVenv, W.SOLL.PhiVenv, 0.002);
+  pruefe('wbs: Σ Φ_HL Räume ≈ 6 495 W', G.summe.phiHL, W.SOLL.phiHLraeume, 0.001);
+  pruefe('wbs: Norm-Gebäudeheizlast ≈ 5 696 W', G.geb.phiHL, W.SOLL.phiHLgeb, 0.001);
+  P.projekt.phiWE = '6';
+  pruefe('wbs: Nachweis nutzt Gebäudeheizlast (5,695 / 6)', Math.round(C.rechneGebaeude(P).nachweis.eta * 1000) / 1000, 0.949);
+  // n_min raumweise: ohne Quelle unvollständig
+  const P2 = W.projekt(); P2.raeume[0].lueftung.nminRaum = '0';
+  pruefe('wbs: n_min je Raum ohne Quelle → unvollständig', C.rechneRaum(P2.raeume[0], P2).fehlt.some(x => x.pfad === 'raum.lu.nminQuelle'), true);
+  const P3 = W.projekt(); P3.normwerte.fenv.geprueft = false;
+  pruefe('wbs: f_env nicht geprüft → unvollständig', C.rechneRaum(P3.raeume[0], P3).vollstaendig, false);
+  pruefe('wbs: DIN/TS braucht kein n_50, e, ε', C.rechneRaum(P.raeume[0], P).fehlt.length, 0);
+}
+
 // ── Testfall 4: Einheitenkontrolle ─────────────────────────────────────────
 C.einheitenPruefung().forEach(s => pruefe('Einheit: ' + s.schritt + ' → ' + s.soll, s.ok, true));
 

@@ -162,3 +162,21 @@ Die Eingaben stammen aus Formblatt G 1 (S. 554) und R 8 (S. 558): θ_e −12 °C
 - Neuer Haken im Raumformular: „innenliegend, keine Transmission“. Er gilt für Räume ohne Außenflächen, deren Nachbarräume alle dieselbe Temperatur haben. Dann ist der Raum ohne Hüllflächen vollständig und Φ_T = 0. Die Lüftung wird weiter gerechnet.
 - Sind trotz Haken Flächen eingetragen, meldet die App einen Widerspruch.
 - Im Browser geprüft: Flur 10 × 2 × 3 m ergibt Φ_T = 0 W, der Raum ist vollständig. Raumtabelle und Rechenweg zeigen „innenliegend“ an. Tests: 103/103.
+
+## Nachtrag 22.11.2026: Verfahren DIN/TS 12831-1:2020 nach wbs-Musterbeispiel
+
+**Quelle:** wbs-WärmebedarfService, „EFH Musterbeispiel wbs“, Heizlastberechnung nach DIN/TS 12831-1:2020-04, Würzburg, 01.09.2021 (`wbs_HEIZLAST_MUSTERBEISPIEL.pdf`, 25 Seiten). Das PDF enthält Ergebnisse, aber keine Formeln und keine Normtabellen. Die Formeln wurden aus den Formblättern R 1–R 13 und G 2 rückgerechnet.
+
+| Größe | Rückrechnung aus dem Musterbeispiel | Prüfung |
+|---|---|---|
+| Leckage | q_V,env,i = 0,1 · q_env,50 · A_env,i, A_env,i = Flächen gegen außen und Erdreich (brutto) | alle 13 Räume auf 0,1 m³/h, z. B. E-1: 0,1 · 2 · 98,71 = 19,7 |
+| Mindestluft | max(q_V,env ; n_min · V − q_V,techn), q_V,techn = max(V̇_su ; V̇_ex) | Garderobe 0,5 · 21,2 = 10,6 m³/h; in Räumen mit Lüftung ist n_min = 0 festgelegt (Formblatt V/Z 1) |
+| Zuluft | ρc_p · V̇_su · (θ_int − θ_su), θ_su = 17,8 °C | E-1: 40 · 0,34 · 2,2 = 30 W |
+| Überströmung | ρc_p · V̇_tr · (θ_int − θ_tr) | Bad 24 °C: 40 · 0,34 · 4 = 54 W, sonst 0 |
+| Gebäude | Σ Φ_T,e + 0,5 · Σ Φ_V,env/min + Σ Φ_V,su + Σ Φ_V,tr | 4 979 + 548 + 114 + 54 = 5 695 ≈ 5 696 W |
+
+- Nicht belegt sind die Faktoren 0,1 (f_env) und 0,5 (f_Geb). Sie sind Normwerte mit Quelle und Haken „geprüft“. Ihre Zerlegung (Volumenstromfaktor Tab. B.8, Orientierungsfaktor B.2.14) muss am Normtext geprüft werden. Ebenso die Annahme, dass q_V,techn = max(V̇_su ; V̇_ex) ist: Im Musterbeispiel ist n_min in diesen Räumen 0, die Annahme wird dort also nicht getestet.
+- Transmission wie Verfahren DIN 2003 (U_equiv mit f_g1 = f_θ,ann = 1,45, f_ij mit U ohne ΔU_WB).
+- **Ergebnis der Nachrechnung:** Jeder Raum ±1 W, Σ Räume 6 494 W (Soll 6 495), Gebäude 5 695 W (Soll 5 696). Die Abweichungen kommen aus den auf 0,1 m² gerundeten Flächen im Formblatt.
+- Neu im Raumformular: V̇_tr, θ_tr, n_min je Raum mit Pflichtquelle. Gebäudeheizlast und Nachweis nutzen beim Verfahren DIN/TS Φ_HL,Geb.
+- Tests: 135/135. Im Browser geprüft: alle Tabs, Rechenweg, Vorzeigeseite, Excel-Export.

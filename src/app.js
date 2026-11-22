@@ -91,7 +91,7 @@ function render() {
 function rProjekt() {
   const st = S.normwerte.standorte.find(s => s.id === S.projekt.standortId);
   const opts = [['', '— Standort wählen —']].concat(S.normwerte.standorte.map(s => [s.id, s.name || '(Standort ohne Namen)']));
-  const vfWahl = ['din2003', 'excel'].map(k => { const v = VERFAHREN[k]; return `<label style="align-items:flex-start"><input type="radio" name="verfahren" data-b="optionen.verfahren" data-r="1" value="${k}" ${S.optionen.verfahren === k ? 'checked' : ''} style="margin-top:3px">
+  const vfWahl = ['dints2020', 'din2003', 'excel'].map(k => { const v = VERFAHREN[k]; return `<label style="align-items:flex-start"><input type="radio" name="verfahren" data-b="optionen.verfahren" data-r="1" value="${k}" ${S.optionen.verfahren === k ? 'checked' : ''} style="margin-top:3px">
       <span><b>${esc(v.titel)}</b><br><span class="klein">${idx(esc(v.text))}</span><br><span class="hinweis klein">Quelle: ${esc(v.quelle)}</span></span></label>`; }).join('');
   return `
   <div class="karte"><h2>Titelblock</h2>
@@ -266,7 +266,7 @@ function rNormwerte() {
     const b = `normwerte.raumarten.#${r.id}`, pf = `nw.ra.${r.id}`;
     return `<tr class="gruppe"><td colspan="8"><div style="display:flex;gap:8px;align-items:center">Raumart ${info('raumart')} ${inp(b + '.name', '', 'n', 'placeholder="z. B. Gruppenraum"')}${weg('raumarten', r.id)}</div></td></tr>
       ${nwZeile('Norm-Innentemperatur', 'θ<sub>int</sub>', '°C', b + '.tint', pf + '.tint', '<td></td>', 'theta_int')}
-      ${nwZeile('Mindestluftwechsel (Verfahren DIN EN 12831:2003)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>', 'nmin')}`;
+      ${nwZeile('Mindestluftwechsel (Verfahren DIN 2003 und DIN/TS)', 'n<sub>min</sub>', '1/h', b + '.nmin', pf + '.nmin', '<td></td>', 'nmin')}`;
   }).join('');
   const liste = (art, sym, titel, pfk) => N[art].map(x => {
     const b = `normwerte.${art}.#${x.id}`;
@@ -282,6 +282,12 @@ function rNormwerte() {
     ${nwZeile('Korrekturfaktor jährliche Temperaturschwankung', 'f<sub>g1</sub>', '–', 'normwerte.fg1', 'nw.fg1', '', 'fg1')}
     ${nwZeile('Korrekturfaktor Grundwasser', 'G<sub>w</sub>', '–', 'normwerte.Gw', 'nw.Gw', '', 'Gw')}
     ${nwZeile('Wärmekapazität der Luft', 'ρ·c<sub>p</sub>', 'Wh/(m³·K)', 'normwerte.rhocp', 'nw.rhocp', '', 'rhocp')}</table></div></div>
+  <div class="karte"><h3>Lüftung über die Hüllfläche (nur Verfahren DIN/TS 12831-1:2020)</h3>
+    <p class="hinweis klein">f<sub>env</sub> und f<sub>Geb</sub> stammen aus dem wbs-Musterbeispiel (rückgerechnet). Erst mit DIN EN 12831-1 Tab. B.8 / B.2.14 und DIN/TS 12831-1 sind sie normgeprüft.</p>
+    <div class="tabwrap"><table class="tab">${kopf()}
+    ${nwZeile('Luftdurchlässigkeit der Hülle bei 50 Pa', 'q<sub>env,50</sub>', 'm³/(h·m²)', 'normwerte.qenv50', 'nw.qenv50', '', 'qenv50')}
+    ${nwZeile('Faktor Leckage-Volumenstrom', 'f<sub>env</sub>', '–', 'normwerte.fenv', 'nw.fenv', '', 'fenv')}
+    ${nwZeile('Gebäude-Anteil der Leckage', 'f<sub>Geb</sub>', '–', 'normwerte.fGeb', 'nw.fGeb', '', 'fGeb')}</table></div></div>
   <div class="karte"><h3>Abschirmungskoeffizient e ${info('e')}</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('e', 'e', 'e', 'e')}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="nw-neu" data-art="e">+ Zeile e</button></div>
   <div class="karte"><h3>Höhenkorrekturfaktor ε ${info('eps')}</h3><div class="tabwrap"><table class="tab">${kopf('<th></th>')}${liste('eps', 'ε', 'ε', 'eps')}</table></div>
@@ -296,7 +302,8 @@ function rRaum() {
   const anOpts = [['', '—']].concat(Object.entries(ANGRENZUNG));
   const eOpts = [['', '— wählen —']].concat(N.e.map(x => [x.id, `${x.klasse || '(ohne Klasse)'}: ${nwText(x.w, 3, '')}`]));
   const epsOpts = [['', '— wählen —']].concat(N.eps.map(x => [x.id, `${x.klasse || '(ohne Klasse)'}: ${nwText(x.w, 2, '')}`]));
-  const din = S.optionen.verfahren === 'din2003';
+  const ts = S.optionen.verfahren === 'dints2020';
+  const din = S.optionen.verfahren === 'din2003' || ts;
   const fl = r.flaechen.map((f, i) => {
     const b = `${e}.flaechen.#${f.id}`, pf = `raum.fl.${f.id}`;
     const tx = f.an === 'unbeheizt' || f.an === 'beheizt';
@@ -341,9 +348,12 @@ function rRaum() {
         <label><input type="radio" name="sumodus" data-b="${lu}.suModus" data-r="1" value="theta" ${r.lueftung.suModus === 'theta' ? 'checked' : ''}> <span>θ<sub>su</sub> direkt</span> ${info('theta_su')}</label></div></div>
       ${r.lueftung.suModus === 'theta' ? feld('Zulufttemperatur θ<sub>su</sub> ' + info('theta_su'), lu + '.thetaSu', 'raum.lu.thetaSu', '°C', 'z') : feld('Rückwärmzahl η<sub>WRG</sub> ' + info('eta'), lu + '.eta', 'raum.lu.eta', '–', 'z')}
     </div>
-    <div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex') + (din ? '' : ' <span class="einh">(nur Info)</span>'), lu + '.Vex', 'raum.lu.Vex', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub> ' + info('n50'), lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
+    ${ts ? `<div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex'), lu + '.Vex', 'raum.lu.Vex', 'm³/h', 'z')}${feld('Überströmluft V̇<sub>tr</sub> ' + info('Vtr'), lu + '.Vtr', 'raum.lu.Vtr', 'm³/h', 'z')}${feld('Temperatur Überströmluft θ<sub>tr</sub> ' + info('theta_tr'), lu + '.thetaTr', 'raum.lu.thetaTr', '°C', 'z')}</div>
+    <div class="reihe drei">${feld('n<sub>min</sub> für diesen Raum ' + info('nminRaum') + ' <span class="einh">(leer = aus Raumart)</span>', lu + '.nminRaum', 'raum.lu.nminRaum', '1/h', 'z')}${feld('Quelle / Begründung n<sub>min</sub>', lu + '.nminQuelle', 'raum.lu.nminQuelle', '', 't', 'placeholder="z. B. Mindestluft über Lüftungsanlage gedeckt"')}
+      <div><span class="hinweis klein">A<sub>env</sub> ${info('Aenv')} in m² · θ<sub>su</sub> in °C · q in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>`
+    : `<div class="reihe drei">${feld('Abluftvolumenstrom V̇<sub>ex</sub> ' + info('Vex') + (din ? '' : ' <span class="einh">(nur Info)</span>'), lu + '.Vex', 'raum.lu.Vex', 'm³/h', 'z')}${feld('Luftwechsel bei 50 Pa n<sub>50</sub> ' + info('n50'), lu + '.n50', 'raum.lu.n50', '1/h', 'z')}
       <div><span class="hinweis klein">θ<sub>su</sub> in °C · V̇ ${info('Vinf')} ${info('Vtherm')} in m³/h</span><span class="ausgabe" data-o="lu">–</span></div></div>
-    <div class="reihe"><label class="feld">Abschirmungskoeffizient e ${info('e')} ${sel(lu + '.eId', 'raum.lu.eId', eOpts)}</label><label class="feld">Höhenkorrekturfaktor ε ${info('eps')} ${sel(lu + '.epsId', 'raum.lu.epsId', epsOpts)}</label></div>
+    <div class="reihe"><label class="feld">Abschirmungskoeffizient e ${info('e')} ${sel(lu + '.eId', 'raum.lu.eId', eOpts)}</label><label class="feld">Höhenkorrekturfaktor ε ${info('eps')} ${sel(lu + '.epsId', 'raum.lu.epsId', epsOpts)}</label></div>`}
   </div>
   <div class="karte"><h2>Aufheizzuschlag ${info('PhiRH')}</h2>
     <div class="radio">${[['', 'kein Aufheizzuschlag'], ['direkt', 'Φ<sub>RH</sub> direkt in W'], ['fRH', 'Φ<sub>RH</sub> = A<sub>R</sub> · f<sub>RH</sub>']].map(([v, t]) =>
@@ -401,8 +411,16 @@ function rTabelle() {
     ${z}
     <tr class="summe"><td></td><td></td><td>Summe</td><td class="zahl">${s ? W(s.A, 2) : '–'}</td><td class="zahl">${s ? W(s.V, 1) : '–'}</td><td></td><td class="zahl">${s ? W(s.phiT) : '–'}</td><td class="zahl">${s ? W(s.phiV) : '–'}</td><td class="zahl">${s ? W(s.phiRH) : '–'}</td><td class="zahl">${s ? W(s.phiHL) : '–'}</td><td class="zahl">${s ? W(s.phiSpez, 1) : '–'}</td><td colspan="2">${s ? '' : '<span class="status no">Räume unvollständig</span>'}</td></tr>
     </table></div>
-    <div class="ergebnis"><div class="haupt">Gebäudeheizlast Σ Φ<sub>HL</sub> ${info('PhiGeb')}<b>${s ? W(s.phiHL / 1000, 2) + ' kW' : '–'}</b></div><div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b style="font-size:.9rem">${esc(nachweisText())}</b></div></div>
-    <p class="hinweis klein">Gebäudeheizlast als Summe der Raumheizlasten ohne Abminderungen.</p></div>`;
+    <div class="ergebnis"><div class="haupt">Gebäudeheizlast ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ${info('PhiGeb')}<b>${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</b></div><div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b style="font-size:.9rem">${esc(nachweisText())}</b></div></div>
+    ${gebHinweis()}</div>`;
+}
+// Herleitung der Gebäudeheizlast (Verfahren DIN/TS: Formblatt G 2 des wbs-Musterbeispiels)
+function gebHinweis() {
+  const g = G.geb;
+  if (!g || !g.ts) return '<p class="hinweis klein">Gebäudeheizlast als Summe der Raumheizlasten ohne Abminderungen.</p>';
+  return `<p class="hinweis klein">Φ<sub>HL,Geb</sub> = Σ Φ<sub>T,e</sub> + f<sub>Geb</sub> · Σ Φ<sub>V,env/min</sub> + Σ Φ<sub>V,su</sub> + Σ Φ<sub>V,tr</sub> + Σ Φ<sub>RH</sub>
+    = ${W(g.phiTe)} + ${W(g.fGeb, 2)} · ${W(g.PhiVenv)} + ${W(g.PhiVsu)} + ${fmtV(g.PhiVtr, 0)} + ${W(G.summe.phiRH)} = <b>${W(g.phiHL)} W</b>.
+    Nicht enthalten: Wärmeströme zwischen beheizten Räumen (${fmtV(g.phiTb, 0)} W). Die Summe der Raumheizlasten (${W(G.summe.phiHL)} W) gilt für die Heizflächen je Raum.</p>`;
 }
 // Rechenweg-Tabelle wie Folienwerte F2_Rechenweg
 function rwTabelle(R, papier) {
@@ -413,7 +431,13 @@ function rwTabelle(R, papier) {
   if (R.innenliegend) h += zr('innenliegend – Nachbarräume mit gleicher Temperatur, keine Transmission', '', '', '', '', '', '0');
   h += zr('<b>Σ Transmission Φ<sub>T</sub></b>', '', '', '', '', '', `<b>${W(R.phiT)}</b>`, papier ? 'zw' : 'summe');
   const w = R.w;
-  if (R.verfahren === 'din2003') {
+  if (R.verfahren === 'dints2020') {
+    h += zr(`Leckage q<sub>V,env</sub> = f<sub>env</sub> · q<sub>env,50</sub> · A<sub>env</sub> (A<sub>env</sub> = ${W(w.Aenv, 2)} m²)`, W(w.qenv, 2), 'm³/h', '', '', '', '');
+    h += zr(`Mindestluft q<sub>V,min</sub> − q<sub>V,techn</sub> = ${W(w.Vmin, 1)} − ${W(w.qtechn, 1)}`, W(w.Vmin - w.qtechn, 1), 'm³/h', '', '', '', '');
+    h += zr(`q<sub>V,env/min</sub> = max(…)${w.minMassgebend ? ' – Mindestluft maßgebend' : ''}`, W(w.qenvmin, 2), 'm³/h', W(w.rhocp, 2), '1', W(w.dth, 1), W(R.PhiVenv));
+    if (w.Vsu > 0) h += zr('Zuluft V̇<sub>su</sub>' + (w.suModus === 'eta' ? ' (WRG)' : '') + ` mit θ<sub>su</sub> = ${W(w.tsu, 1)} °C`, W(w.Vsu, 0), 'm³/h', W(w.rhocp, 2), '1', W(w.tint - w.tsu, 1), W(R.PhiVsu));
+    if (w.Vtr > 0) h += zr(`Überströmluft V̇<sub>tr</sub> mit θ<sub>tr</sub> = ${W(w.ttr, 1)} °C`, W(w.Vtr, 0), 'm³/h', W(w.rhocp, 2), '1', W(w.tint - w.ttr, 1), W(R.PhiVtr));
+  } else if (R.verfahren === 'din2003') {
     h += zr('Infiltration V̇<sub>inf</sub>', W(w.Vinf, 2), 'm³/h', '', '1', '', '');
     if (w.Vsu > 0) h += zr('Zuluft V̇<sub>su</sub> · f<sub>V,su</sub>' + (w.suModus === 'eta' ? ' (WRG)' : ''), W(w.Vsu, 0), 'm³/h', '', W(w.fsu, 3), '', '');
     if (w.Vmech > 0) h += zr('Abluftüberschuss V̇<sub>mech,inf</sub>', W(w.Vmech, 1), 'm³/h', '', '1', '', '');
@@ -451,8 +475,19 @@ function fwZeilen(R) {
   else z('Φ_T = Σ Φ_T,k', '= ' + R.zeilen.map(t => fmtV(t.phi, 1)).join(' + '), `= ${W(R.phiT, 1)} W`);
   gr('Lüftung');
   if (w.Vsu > 0 && w.suModus === 'eta') z('θ_su = θ_e + η_WRG · (θ_int − θ_e)', `= ${fmtV(w.te, 1)} + ${W(w.eta, 2)} · ${W(w.dth, 1)}`, `= ${W(w.tsu, 2)} °C`);
-  z('V̇_inf = 2 · V_i · n_50 · e · ε', `= 2 · ${W(w.V, 2)} · ${W(w.n50, 2)} · ${W(w.e, 3)} · ${W(w.eps, 2)}`, `= ${W(w.Vinf, 2)} m³/h`);
-  if (R.verfahren === 'din2003') {
+  if (R.verfahren === 'dints2020') {
+    const ae = R.zeilen.filter(t => t.an === 'aussen' || t.an === 'erdreich');
+    z('A_env,i = Σ A_k (außen, Erdreich)', '= ' + ae.map(t => W(t.bezug, 2)).join(' + '), `= ${W(w.Aenv, 2)} m²`);
+    z('q_V,env,i = f_env · q_env,50 · A_env,i', `= ${W(w.fenv, 3)} · ${W(w.qenv50, 2)} · ${W(w.Aenv, 2)}`, `= ${W(w.qenv, 2)} m³/h`);
+    z('q_V,min,i = n_min · V_i' + (w.nminEigen ? '  (n_min raumweise: ' + w.nminQuelle + ')' : ''), `= ${W(w.nmin, 2)} · ${W(w.V, 2)}`, `= ${W(w.Vmin, 2)} m³/h`);
+    z('q_V,techn,i = max(V̇_su ; V̇_ex)', `= max(${W(w.Vsu, 0)} ; ${W(w.Vex, 0)})`, `= ${W(w.qtechn, 1)} m³/h`);
+    z('q_V,env/min,i = max(q_V,env,i ; q_V,min,i − q_V,techn,i)', `= max(${W(w.qenv, 2)} ; ${W(w.Vmin, 2)} − ${W(w.qtechn, 1)})`, `= ${W(w.qenvmin, 2)} m³/h`);
+    z('Φ_V,env = ρ·c_p · q_V,env/min,i · (θ_int − θ_e)', `= ${W(w.rhocp, 2)} · ${W(w.qenvmin, 2)} · ${W(w.dth, 1)}`, `= ${W(R.PhiVenv, 1)} W`);
+    z('Φ_V,su = ρ·c_p · V̇_su · (θ_int − θ_su)', w.Vsu > 0 ? `= ${W(w.rhocp, 2)} · ${W(w.Vsu, 0)} · (${fmtV(w.tint, 1)} − ${fmtV(w.tsu, 2)})` : '= 0 (keine Zuluft)', `= ${W(R.PhiVsu, 1)} W`);
+    z('Φ_V,tr = ρ·c_p · V̇_tr · (θ_int − θ_tr)', w.Vtr > 0 ? `= ${W(w.rhocp, 2)} · ${W(w.Vtr, 0)} · (${fmtV(w.tint, 1)} − ${fmtV(w.ttr, 1)})` : '= 0 (keine Überströmluft)', `= ${W(R.PhiVtr, 1)} W`);
+    z('Φ_V = Φ_V,env + Φ_V,su + Φ_V,tr', `= ${W(R.PhiVenv, 1)} + ${W(R.PhiVsu, 1)} + ${fmtV(R.PhiVtr, 1)}`, `= ${W(R.phiV, 1)} W`);
+  } else z('V̇_inf = 2 · V_i · n_50 · e · ε', `= 2 · ${W(w.V, 2)} · ${W(w.n50, 2)} · ${W(w.e, 3)} · ${W(w.eps, 2)}`, `= ${W(w.Vinf, 2)} m³/h`);
+  if (R.verfahren === 'dints2020') { /* oben */ } else if (R.verfahren === 'din2003') {
     if (w.Vsu > 0) z('f_V,su = (θ_int − θ_su) / (θ_int − θ_e)', `= (${fmtV(w.tint, 1)} − ${fmtV(w.tsu, 2)}) / ${W(w.dth, 1)}`, `= ${W(w.fsu, 3)}`);
     z('V̇_mech,inf = V̇_ex − V̇_su  (nur Überschuss)', `= max(${W(w.Vex, 0)} − ${W(w.Vsu, 0)} ; 0)`, `= ${W(w.Vmech, 2)} m³/h`);
     z('V̇_min = n_min · V_i', `= ${W(w.nmin, 2)} · ${W(w.V, 2)}`, `= ${W(w.Vmin, 2)} m³/h`);
@@ -498,14 +533,16 @@ function blattHtml() {
   const stTxt = n => { const [c, t] = nwStatus(n); return `<span class="${c}">${t}</span>`; };
   const v = (x, d) => (ok(x) ? W(x, d) : '–');
   // verwendete Normwerte
+  const tsV = S.optionen.verfahren === 'dints2020';
   const genutzt = { ra: new Set(), e: new Set(), eps: new Set() };
-  S.raeume.forEach(r => { genutzt.ra.add(r.raumartId); genutzt.e.add(r.lueftung.eId); genutzt.eps.add(r.lueftung.epsId); });
+  S.raeume.forEach(r => { genutzt.ra.add(r.raumartId); if (!tsV) { genutzt.e.add(r.lueftung.eId); genutzt.eps.add(r.lueftung.epsId); } });
   const erd = S.raeume.some(r => r.flaechen.some(f => f.an === 'erdreich'));
   const rb = [];
   if (st) { rb.push(['Norm-Außentemperatur θ_e', st.te, 1, '°C', st.name]); if (erd) rb.push(['Jahresmittel Außentemperatur θ_m,e', st.tme, 1, '°C', st.name]); }
-  N.raumarten.filter(r => genutzt.ra.has(r.id)).forEach(r => { rb.push([`Norm-Innentemperatur θ_int (${r.name})`, r.tint, 1, '°C']); if (S.optionen.verfahren === 'din2003') rb.push([`Mindestluftwechsel n_min (${r.name})`, r.nmin, 2, '1/h']); });
+  N.raumarten.filter(r => genutzt.ra.has(r.id)).forEach(r => { rb.push([`Norm-Innentemperatur θ_int (${r.name})`, r.tint, 1, '°C']); if (S.optionen.verfahren === 'din2003' || tsV) rb.push([`Mindestluftwechsel n_min (${r.name})`, r.nmin, 2, '1/h']); });
   if (erd) { rb.push(['Korrekturfaktor f_g1', N.fg1, 2, '–']); rb.push(['Korrekturfaktor Grundwasser G_w', N.Gw, 2, '–']); }
   rb.push(['Wärmekapazität Luft ρ·c_p', N.rhocp, 2, 'Wh/(m³·K)']);
+  if (tsV) { rb.push(['Luftdurchlässigkeit der Hülle q_env,50', N.qenv50, 2, 'm³/(h·m²)']); rb.push(['Faktor Leckage f_env', N.fenv, 3, '–']); rb.push(['Gebäude-Anteil Leckage f_Geb', N.fGeb, 2, '–']); }
   N.e.filter(x => genutzt.e.has(x.id)).forEach(x => rb.push([`Abschirmungskoeffizient e (${x.klasse})`, x.w, 3, '–']));
   N.eps.filter(x => genutzt.eps.has(x.id)).forEach(x => rb.push([`Höhenkorrekturfaktor ε (${x.klasse})`, x.w, 2, '–']));
   const rbHtml = rb.map(([t, n, d, e]) => `<tr><td>${idx(esc(t))}</td><td class="z">${ok(num(n.wert)) ? W(num(n.wert), d) : '–'}</td><td>${e}</td><td>${esc(n.quelle) || '–'}</td><td>${stTxt(n)}</td></tr>`).join('');
@@ -526,11 +563,12 @@ function blattHtml() {
   const nw = G.nachweis;
   const quellen = [];
   NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${normBadge(n)[0]}">${normBadge(n)[1]}</span>: ${esc(n.text)}</li>`));
-  quellen.push(`<li>Rechenweg DIN EN 12831:2003: ${esc(QUELLE_LAASCH)}</li>`);
+  if (tsV) quellen.push(`<li>Rechenweg DIN/TS 12831-1:2020 (Lüftung, Gebäudeheizlast): ${esc(QUELLE_WBS)}. Rückgerechnet, nicht gegen den Normtext geprüft.</li>`);
+  quellen.push(`<li>Rechenweg DIN EN 12831:2003${tsV ? ' (Transmission)' : ''}: ${esc(QUELLE_LAASCH)}</li>`);
   const alleNW = [];
   N.standorte.forEach(s => { alleNW.push([`θ_e ${s.name}`, s.te, '°C']); alleNW.push([`θ_m,e ${s.name}`, s.tme, '°C']); });
   N.raumarten.forEach(r => { alleNW.push([`θ_int ${r.name}`, r.tint, '°C']); alleNW.push([`n_min ${r.name}`, r.nmin, '1/h']); });
-  alleNW.push(['f_g1', N.fg1, '–'], ['G_w', N.Gw, '–'], ['ρ·c_p', N.rhocp, 'Wh/(m³·K)']);
+  alleNW.push(['f_g1', N.fg1, '–'], ['G_w', N.Gw, '–'], ['ρ·c_p', N.rhocp, 'Wh/(m³·K)'], ['q_env,50', N.qenv50, 'm³/(h·m²)'], ['f_env', N.fenv, '–'], ['f_Geb', N.fGeb, '–']);
   N.e.forEach(x => alleNW.push([`e ${x.klasse}`, x.w, '–'])); N.eps.forEach(x => alleNW.push([`ε ${x.klasse}`, x.w, '–']));
   const nwListe = alleNW.filter(([, n]) => ok(num(n.wert))).map(([t, n, e]) => `<tr><td>${idx(esc(t))}</td><td class="z">${esc(n.wert)}${e === '–' ? '' : ' ' + e}</td><td>${esc(n.quelle) || '–'}</td><td>${stTxt(n)}</td></tr>`).join('');
   const btQ = S.bauteile.map(b => `<li>${esc(b.name)}: ${esc(b.quelle) || '<span class="no">Quelle fehlt</span>'}</li>`).join('');
@@ -557,11 +595,12 @@ function blattHtml() {
   <table><thead><tr><th>Nr.</th><th>Raum</th><th class="z">A in m²</th><th class="z">V in m³</th><th class="z">θ<sub>int</sub> in °C</th><th class="z">Φ<sub>T</sub> in W</th><th class="z">Φ<sub>V</sub> in W</th><th class="z">Φ<sub>RH</sub> in W</th><th class="z">Φ<sub>HL</sub> in W</th><th class="z">φ in W/m²</th><th>Status</th></tr></thead>
   <tbody>${raeumeHtml || '<tr><td colspan="11">–</td></tr>'}
   <tr class="summe"><td></td><td>Summe</td><td class="z">${sum ? W(sum.A, 2) : '–'}</td><td class="z">${sum ? W(sum.V, 1) : '–'}</td><td></td><td class="z">${sum ? W(sum.phiT) : '–'}</td><td class="z">${sum ? W(sum.phiV) : '–'}</td><td class="z">${sum ? W(sum.phiRH) : '–'}</td><td class="z">${sum ? W(sum.phiHL) : '–'}</td><td class="z">${sum ? W(sum.phiSpez, 1) : '–'}</td><td></td></tr>
-  <tr class="ges"><td></td><td colspan="7">Gebäudeheizlast Σ Φ<sub>HL</sub> (ohne Abminderungen)</td><td class="z" colspan="2">${sum ? W(sum.phiHL / 1000, 2) + ' kW' : '–'}</td><td></td></tr></tbody></table>
+  <tr class="ges"><td></td><td colspan="7">${G.geb && G.geb.ts ? 'Norm-Gebäudeheizlast Φ<sub>HL,Geb</sub> (siehe unten)' : 'Gebäudeheizlast Σ Φ<sub>HL</sub> (ohne Abminderungen)'}</td><td class="z" colspan="2">${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</td><td></td></tr></tbody></table>
+  ${G.geb && G.geb.ts ? gebHinweis().replace('class="hinweis klein"', 'style="font-size:7.8pt"') : ''}
   ${rw}
   <h2><span class="nr">5</span>Nachweis</h2>
   <div class="block"><table><thead><tr><th>Nachweis</th><th class="z">E<sub>d</sub> in kW</th><th class="z">R<sub>d</sub> in kW</th><th class="z">η = E<sub>d</sub> / R<sub>d</sub></th><th>erfüllt (η ≤ 1,0)</th></tr></thead>
-  <tbody><tr><td>Wärmeerzeuger bei θ<sub>e</sub>: Σ Φ<sub>HL</sub> ≤ Φ<sub>WE</sub></td><td class="z">${sum ? W(sum.phiHL / 1000, 2) : '–'}</td><td class="z">${ok(num(P.phiWE)) ? W(num(P.phiWE), 2) : '–'}</td><td class="z">${nw ? W(nw.eta, 3) : '–'}</td><td>${nw ? (nw.erfuellt ? '<span class="ok">ja</span>' : '<span class="no">nein</span>') : '–'}</td></tr></tbody></table></div>
+  <tbody><tr><td>Wärmeerzeuger bei θ<sub>e</sub>: ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ≤ Φ<sub>WE</sub></td><td class="z">${G.geb ? W(G.geb.phiHL / 1000, 2) : '–'}</td><td class="z">${ok(num(P.phiWE)) ? W(num(P.phiWE), 2) : '–'}</td><td class="z">${nw ? W(nw.eta, 3) : '–'}</td><td>${nw ? (nw.erfuellt ? '<span class="ok">ja</span>' : '<span class="no">nein</span>') : '–'}</td></tr></tbody></table></div>
   <h2><span class="nr">6</span>Quellen und geprüfte Normwerte</h2>
   <ul>${quellen.join('')}</ul>
   <div class="block"><table><thead><tr><th>Normwert</th><th class="z">Wert</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${nwListe || '<tr><td colspan="4">Keine Normwerte eingetragen.</td></tr>'}</tbody></table></div>
@@ -600,7 +639,9 @@ function aktualisiereRaum() {
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
   (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
   R.zeilen.forEach(z => { set('an:' + z.flId, W(z.bezug, 2)); set('phi:' + z.flId, `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
-  set('lu', `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}${R.verfahren === 'din2003' ? ` · V̇<sub>min</sub> = ${W(w.Vmin, 2)} · V̇<sub>therm</sub> = ${W(w.Vtherm, 2)}` : ''}`);
+  set('lu', R.verfahren === 'dints2020'
+    ? `A<sub>env</sub> = ${W(w.Aenv, 2)} · θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · q<sub>V,env</sub> = ${W(w.qenv, 2)} · q<sub>V,min</sub> = ${W(w.Vmin, 2)} · q<sub>V,env/min</sub> = ${W(w.qenvmin, 2)}`
+    : `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}${R.verfahren === 'din2003' ? ` · V̇<sub>min</sub> = ${W(w.Vmin, 2)} · V̇<sub>therm</sub> = ${W(w.Vtherm, 2)}` : ''}`);
   set('raumerg', raumErgebnisHtml(R));
 }
 function nachEingabe(el) {
@@ -618,7 +659,7 @@ const tief = o => JSON.parse(JSON.stringify(o));
 function entwurfBenutzt() {
   const r = S.entwurf, l = r.lueftung;
   return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH || r.rhModus || r.fRH || r.innenliegend ||
-    l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId);
+    l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId || l.Vtr || l.thetaTr || l.nminRaum);
 }
 const AKTION = {
   'vz-raum'(d) { const g = vorzeigeAuswahl(); S.vorzeigeRaeume = g.includes(d.id) ? g.filter(x => x !== d.id) : g.concat(d.id); },
@@ -762,6 +803,7 @@ function exportXlsx() {
   if (st) { nwz('te', `Norm-Außentemperatur (${st.name})`, 'θ_e', st.te, '°C'); nwz('tme', `Jahresmittel Außentemperatur (${st.name})`, 'θ_m,e', st.tme, '°C'); }
   N.raumarten.forEach(r => { nwz('tint' + r.id, `Norm-Innentemperatur (${r.name})`, 'θ_int', r.tint, '°C'); nwz('nmin' + r.id, `Mindestluftwechsel (${r.name})`, 'n_min', r.nmin, '1/h'); });
   nwz('fg1', 'Korrekturfaktor jährl. Temperaturschwankung', 'f_g1', N.fg1, '–'); nwz('Gw', 'Korrekturfaktor Grundwasser', 'G_w', N.Gw, '–'); nwz('rhocp', 'Wärmekapazität Luft', 'ρ·c_p', N.rhocp, 'Wh/(m³·K)');
+  if (S.optionen.verfahren === 'dints2020') { nwz('qenv50', 'Luftdurchlässigkeit der Hülle bei 50 Pa', 'q_env,50', N.qenv50, 'm³/(h·m²)'); nwz('fenv', 'Faktor Leckage-Volumenstrom', 'f_env', N.fenv, '–'); nwz('fGeb', 'Gebäude-Anteil der Leckage', 'f_Geb', N.fGeb, '–'); }
   N.e.forEach(x => nwz('e' + x.id, `Abschirmungskoeffizient (${x.klasse})`, 'e', x.w, '–')); N.eps.forEach(x => nwz('eps' + x.id, `Höhenkorrekturfaktor (${x.klasse})`, 'ε', x.w, '–'));
   // Bauteile
   const br = [[kopfz[0]], [kopfz[1]], [], ['Bauteil', 'Art', 'U in W/(m²·K)', 'ΔU_WB in W/(m²·K)', 'U_c in W/(m²·K)', 'Quelle']];
@@ -785,7 +827,7 @@ function exportXlsx() {
     });
     const h1 = hr.length;
     const eta = r.lueftung.suModus === 'eta';
-    const ra = r.raumartId, din = R.verfahren === 'din2003', rhm = w.rhModus;
+    const ra = r.raumartId, din = R.verfahren === 'din2003', ts = R.verfahren === 'dints2020', rhm = w.rhModus;
     const vth = w.Vsu > 0 ? `S${z}+M${z}*(J${z}-O${z})/K${z}+MAX(AA${z}-M${z},0)` : `S${z}+MAX(AA${z}-M${z},0)`;
     rr.push([r.nr, r.name, r.geschoss, w.raumart,
       r.amodus === 'LB' ? n(r.L) : '', r.amodus === 'LB' ? n(r.B) : '',
@@ -795,11 +837,14 @@ function exportXlsx() {
       v ? { f: h1 >= h0 ? `SUM(Hüllflächen!L${h0}:L${h1})` : '0', v: R.phiT } : '',
       n(r.lueftung.Vsu), eta ? n(r.lueftung.eta) : '',
       v ? (w.Vsu > 0 ? (eta ? { f: `${NR.te}+N${z}*(J${z}-${NR.te})`, v: w.tsu } : n(r.lueftung.thetaSu)) : '') : '',
-      n(r.lueftung.n50), v ? { f: NR['e' + r.lueftung.eId], v: w.e } : '', v ? { f: NR['eps' + r.lueftung.epsId], v: w.eps } : '',
+      ...(ts
+        // DIN/TS: Werte ohne Formel (Leckage über die Hüllfläche, siehe Rechenweg); Spalte U = q_V,env/min
+        ? ['', '', '', '', v ? w.Vmin : '', v ? w.qenvmin : '', v ? R.phiV : '']
+        : [n(r.lueftung.n50), v ? { f: NR['e' + r.lueftung.eId], v: w.e } : '', v ? { f: NR['eps' + r.lueftung.epsId], v: w.eps } : '',
       v ? { f: `2*I${z}*P${z}*Q${z}*R${z}`, v: w.Vinf } : '',
       v && din ? { f: `${NR['nmin' + ra]}*I${z}`, v: w.Vmin } : '',
       v ? (din ? { f: `MAX(${vth},T${z})`, v: w.Vtherm } : { f: `S${z}`, v: w.Vinf }) : '',
-      v ? { f: din ? `${NR.rhocp}*U${z}*K${z}` : w.Vsu > 0 ? `${NR.rhocp}*(U${z}*K${z}+M${z}*(J${z}-O${z}))` : `${NR.rhocp}*U${z}*K${z}`, v: R.phiV } : '',
+      v ? { f: din ? `${NR.rhocp}*U${z}*K${z}` : w.Vsu > 0 ? `${NR.rhocp}*(U${z}*K${z}+M${z}*(J${z}-O${z}))` : `${NR.rhocp}*U${z}*K${z}`, v: R.phiV } : '']),
       v ? (rhm === 'fRH' ? { f: `G${z}*AB${z}`, v: R.phiRH } : rhm === 'direkt' ? n(r.phiRH) : 0) : '',
       v ? { f: `L${z}+V${z}+W${z}`, v: R.phiHL } : '', v ? { f: `X${z}/G${z}`, v: R.phiSpez } : '', v ? 'vollständig' : 'unvollständig',
       n(r.lueftung.Vex), rhm === 'fRH' ? n(r.fRH) : '']);
@@ -810,7 +855,8 @@ function exportXlsx() {
       s ? { f: `SUM(L${R0}:L${ze})`, v: s.phiT } : '', '', '', '', '', '', '', '', '', '', s ? { f: `SUM(V${R0}:V${ze})`, v: s.phiV } : '', s ? { f: `SUM(W${R0}:W${ze})`, v: s.phiRH } : '',
       s ? { f: `SUM(X${R0}:X${ze})`, v: s.phiHL } : '', s ? { f: `X${zs}/G${zs}`, v: s.phiSpez } : '', s ? '' : 'Räume unvollständig – keine Summe']);
     rr.push([]);
-    rr.push(['', 'Gebäudeheizlast Σ Φ_HL in kW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s ? { f: `X${zs}/1000`, v: s.phiHL / 1000 } : '']);
+    if (G.geb && G.geb.ts) rr.push(['', 'Norm-Gebäudeheizlast Φ_HL,Geb in kW = (Σ Φ_T,e + f_Geb · Σ Φ_V,env/min + Σ Φ_V,su + Σ Φ_V,tr + Σ Φ_RH) / 1000', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', G.geb.phiHL / 1000]);
+    else rr.push(['', 'Gebäudeheizlast Σ Φ_HL in kW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s ? { f: `X${zs}/1000`, v: s.phiHL / 1000 } : '']);
     const zw = rr.length + 1;
     rr.push(['', 'Leistung Wärmeerzeuger Φ_WE in kW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', n(S.projekt.phiWE)]);
     rr.push(['', 'Nachweis η = Σ Φ_HL / Φ_WE ≤ 1,0', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s && G.nachweis ? { f: `X${zw - 1}/X${zw}`, v: G.nachweis.eta } : '',
