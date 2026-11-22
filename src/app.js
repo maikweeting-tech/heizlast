@@ -261,7 +261,7 @@ function bauteilNachweiseHtml() {
     const n = b.nachweis;
     if (!n) return `<tr><td>${esc(b.name)}</td><td colspan="4"><i>Nachweise nicht übergeben – Bauteil im Tab „2 Wärmeschutz“ berechnen und neu übergeben.</i></td></tr>`;
     const m = n.min, g = n.gmodg, s = n.schimmel, gl = n.glaser;
-    const minT = m ? `R = ${v(m.Rvorh, 2)} ≥ R<sub>min</sub> = ${v(m.rmin, 2)}<br>${ja(m.ok, m.ok ? 'erfüllt' : 'nicht erfüllt')}` : '–';
+    const minT = m ? `R = ${v(m.Rvorh, 2)} ≥ R<sub>min</sub> = ${v(m.rmin, 2)}<br>${ja(m.ok, m.ok ? 'erfüllt' : 'nicht erfüllt')}${m.geprueft ? '' : '<br><span class="no">R<sub>min</sub> ungeprüft</span>'}` : '–';
     const gT = !g ? '–' : g.fall === 'neubau' ? `U = ${v(g.Ur, 2)} / U<sub>Ref</sub> = ${v(g.umax, 2)}<br>${ja(g.ok, g.ok ? 'Referenz erreicht' : 'Referenz verfehlt')}`
       : g.keine ? `Anl. 7 Nr. ${esc(g.nr)}: keine Anforderung` : `U = ${v(g.Ur, 2)} ≤ U<sub>max</sub> = ${v(g.umax, 2)} (Anl. 7 Nr. ${esc(g.nr)})<br>${ja(g.ok, g.ok ? 'erfüllt' : 'nicht erfüllt')}`;
     const sT = s ? `θ<sub>si</sub> = ${v(s.thetaSi, 1)} ≥ ${v(s.thetaMin, 1)} °C, f<sub>Rsi</sub> = ${v(s.fRsi, 2)}<br>${ja(s.ok, s.ok ? 'kein Schimmel' : 'Schimmelgefahr')}` : '–';

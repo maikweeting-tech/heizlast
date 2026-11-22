@@ -489,7 +489,7 @@ function nachweisAus(n) {
   const o = (x, f) => (x && typeof x === 'object' ? f(x) : null);
   return {
     rb: o(n.rb, x => ({ ti: z(x.ti), te: z(x.te), raum: t(x.raum), richtung: t(x.richtung) })),
-    min: o(n.min, x => ({ rmin: z(x.rmin), Rvorh: z(x.Rvorh), eta: z(x.eta), ok: j(x.ok), zeile: t(x.zeile), text: t(x.text), din: t(x.din) })),
+    min: o(n.min, x => ({ rmin: z(x.rmin), Rvorh: z(x.Rvorh), eta: z(x.eta), ok: j(x.ok), zeile: t(x.zeile), text: t(x.text), din: t(x.din), geprueft: t(x.geprueft) })),
     gmodg: o(n.gmodg, x => ({ fall: t(x.fall), Ur: z(x.Ur), umax: z(x.umax), ok: j(x.ok), keine: j(x.keine), nr: t(x.nr), text: t(x.text), zone: t(x.zone) })),
     schimmel: o(n.schimmel, x => ({ thetaSi: z(x.thetaSi), thetaMin: z(x.thetaMin), fRsi: z(x.fRsi), ok: j(x.ok) })),
     glaser: o(n.glaser, x => (Array.isArray(x.muFehlt) ? { muFehlt: x.muFehlt.map(t) }
