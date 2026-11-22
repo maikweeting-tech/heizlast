@@ -991,9 +991,9 @@ function schnittSvg(G, bauteile, opt = {}) {
   const fmtU = u => (u == null ? '' : ' (U_c ' + u.toFixed(2).replace('.', ',') + ')');
   let s = `<svg class="schnitt" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gebäudeschnitt">
   <defs><pattern id="erde" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#a08060" stroke-width="1.4"/></pattern></defs>
-  <style>.sn-t{font:11px Arial,sans-serif;fill:#1f2933}.sn-b{font:bold 11px Arial,sans-serif;fill:#1f2933}.sn-g{font:bold 13px Arial,sans-serif;fill:#1f2933}.sn-k{font:10px Arial,sans-serif;fill:#5b6470}.sn-no{font:italic 11px Arial,sans-serif;fill:#C0392B}</style>`;
+  <style>.sn-t,.sn-b,.sn-k,.sn-no{paint-order:stroke;stroke:#fff;stroke-width:3px;stroke-linejoin:round}.sn-t{font:11px Arial,sans-serif;fill:#1f2933}.sn-b{font:bold 11px Arial,sans-serif;fill:#1f2933}.sn-g{font:bold 13px Arial,sans-serif;fill:#1f2933}.sn-k{font:10px Arial,sans-serif;fill:#5b6470}.sn-no{font:italic 11px Arial,sans-serif;fill:#C0392B}</style>`;
   // Erdreich
-  s += `<rect x="${xL - 95}" y="${yG}" width="${xR - xL + 190}" height="${H - yG - 6}" fill="url(#erde)" opacity=".55"/><line x1="${xL - 120}" y1="${yG}" x2="${xR + 120}" y2="${yG}" stroke="#6b5440" stroke-width="2"/>`;
+  s += `<rect x="${xL - 95}" y="${yG}" width="${xR - xL + 190}" height="${H - yG - 6}" fill="url(#erde)" opacity=".55"/><line x1="${xL - 28}" y1="${yG}" x2="${xR + 28}" y2="${yG}" stroke="#6b5440" stroke-width="2"/>`;
   // Geschosse
   gs.forEach((g, i) => {
     const fill = g.keller ? (g.beheizt ? '#f6dcc8' : '#e3e6ea') : (g.beheizt ? '#fde7d6' : '#eceff2');
@@ -1016,10 +1016,12 @@ function schnittSvg(G, bauteile, opt = {}) {
 
   // Beschriftungen: links und rechts, Überlappung vermeiden
   const marken = { L: [], R: [] };
+  // lange Bauteilnamen kürzen, damit die Beschriftung im Blatt bleibt (voller Name im Bauteilkatalog)
+  const kurz = t => (t.length > 30 ? t.slice(0, 29).trimEnd() + '…' : t);
   // leer: Text, wenn kein Bauteil benannt ist ('' = rot „nicht benannt“)
   const marke = (seite, lage, ax, ay, titel, leer) => {
     const liste = bl[lage] || [];
-    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3), leer });
+    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => kurz(b.name) + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3), leer });
   };
   const ersterOben = gs.findIndex(g => !g.keller);
   const ersterKeller = gs.findIndex(g => g.keller);
