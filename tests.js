@@ -245,6 +245,19 @@ pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
   pruefe('wbs: DIN/TS braucht kein n_50, e, ε', C.rechneRaum(P.raeume[0], P).fehlt.length, 0);
 }
 
+// ── Hüllfläche aus Länge × Höhe ────────────────────────────────────────────
+{
+  const P = testprojekt(), r = P.raeume[0], f = r.flaechen[0];
+  const vorher = C.rechneRaum(r, P);
+  const Ab = C.num(f.Ab);
+  f.fL = '2'; f.fH = String(Ab / 2).replace('.', ','); f.Ab = '999';
+  const R1 = C.rechneRaum(r, P);
+  pruefe('L × H ersetzt A_brutto (Ergebnis gleich)', Math.abs(R1.phiHL - vorher.phiHL) < 1e-6, true);
+  pruefe('L × H: Zeile kennt die Maße', R1.zeilen[0].masz + '|' + R1.zeilen[0].fL, 'true|2');
+  f.fH = '';
+  pruefe('L × H: fehlende Höhe → unvollständig', C.rechneRaum(r, P).fehlt.some(x => x.pfad.endsWith('.fH')), true);
+}
+
 // ── Testfall 4: Einheitenkontrolle ─────────────────────────────────────────
 C.einheitenPruefung().forEach(s => pruefe('Einheit: ' + s.schritt + ' → ' + s.soll, s.ok, true));
 

@@ -86,6 +86,10 @@ table.tab { width: 100%; border-collapse: collapse; font-size: .9rem; }
 .tab input[type=text], .tab select { min-height: 36px; padding: 3px 6px; margin: 0; font-size: .88rem; border-radius: 5px; }
 .tab input.z { width: 86px; text-align: right; font-family: var(--mono); }
 .tab input.q { min-width: 210px; }
+.tab td.lh { white-space: nowrap; }
+.tab td.lh input.z { width: 62px; }
+.tab td.lh span { margin: 0 3px; color: var(--muted, #5b6470); }
+.tab input[readonly] { background: var(--flaeche2, #eef0f3); color: var(--muted, #5b6470); }
 .tab input.n { min-width: 150px; }
 .tab tr.summe td { font-weight: 700; border-top: 2px solid var(--navy); background: var(--flaeche2); }
 .tab tr.gruppe td { background: var(--navy-hell); font-weight: 700; font-size: .8rem; }

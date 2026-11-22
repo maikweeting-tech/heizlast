@@ -319,7 +319,8 @@ function rRaum() {
     return `<tr><td>${i + 1}</td>
       <td>${sel(b + '.bauteilId', pf + '.bauteilId', btOpts, false)}</td>
       <td>${sel(b + '.ausrichtung', '', AUSRICHTUNG.map(a => [a, a || '–']), false)}</td>
-      <td>${inp(b + '.Ab', pf + '.Ab')}</td><td>${inp(b + '.Az', pf + '.Az')}</td>
+      <td class="lh">${inp(b + '.fL', pf + '.fL', 'z', 'placeholder="L"')}<span>×</span>${inp(b + '.fH', pf + '.fH', 'z', 'placeholder="H"')}</td>
+      <td>${inp(b + '.Ab', pf + '.Ab', 'z', String(f.fL || f.fH || '').trim() ? 'readonly title="aus Länge × Höhe"' : '')}</td><td>${inp(b + '.Az', pf + '.Az')}</td>
       <td class="zahl" data-o="an:${f.id}">–</td>
       <td>${sel(b + '.an', pf + '.an', anOpts)}</td>
       <td>${zusatz}</td>
@@ -342,8 +343,8 @@ function rRaum() {
   </div>
   <div class="karte"><h2>Hüllflächen</h2>
     <label class="haken" style="margin-bottom:8px" data-pf="raum.flaechen"><input type="checkbox" data-b="${e}.innenliegend" data-r="1" ${r.innenliegend ? 'checked' : ''}> innenliegend, keine Transmission (alle Nachbarräume mit gleicher Temperatur) ${info('innenliegend')}</label>
-    ${r.innenliegend && !r.flaechen.length ? '<p class="hinweis">Φ<sub>T</sub> = 0 W. Grenzt der Raum an Nachbarräume mit anderer Temperatur, an Erdreich oder an Unbeheiztes, den Haken entfernen und diese Flächen eintragen.</p>' : `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
-    ${fl || '<tr><td colspan="10" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
+    ${r.innenliegend && !r.flaechen.length ? '<p class="hinweis">Φ<sub>T</sub> = 0 W. Grenzt der Raum an Nachbarräume mit anderer Temperatur, an Erdreich oder an Unbeheiztes, den Haken entfernen und diese Flächen eintragen.</p>' : `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">L × H ${info('LH')}<br>m</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
+    ${fl || '<tr><td colspan="11" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>`}
     ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „3 Bauteile“ anlegen.</p>'}
   </div>
@@ -473,6 +474,7 @@ function fwZeilen(R) {
   R.zeilen.forEach((t, i) => {
     const k = i + 1;
     if (t.ukName === 'U_c') z(`U_c,${k} = U + ΔU_WB`, `= ${W(t.U, 3)} + ${W(t.dU, 3)}`, `= ${W(t.Uk, 3)} W/(m²·K)`);
+    if (t.masz) z(`A_brutto,${k} = L · H`, `= ${W(t.fL, 2)} · ${W(t.fH, 2)}`, `= ${W(t.Ab, 2)} m²`);
     if (t.Az > 0) z(`A_${k} = A_brutto − A_Öffn.`, `= ${W(t.Ab, 2)} − ${W(t.Az, 2)}`, `= ${W(t.bezug, 2)} m²`);
     if (t.fWerte) z(`f_${k} (${ANGRENZUNG[t.an]}): ${t.fText}`, t.fWerte, `= ${W(t.f, 3)}`);
     z(`Φ_T,${k} = A · ${t.ukName} · f · Δθ  (${t.label})`, `= ${W(t.bezug, 2)} · ${W(t.Uk, 3)} · ${W(t.f, 3)} · ${W(t.dth, 1)}`, `= ${W(t.phi, 1)} W`);
@@ -644,6 +646,14 @@ function aktualisiereRaum() {
   const set = (k, h) => { const el = o(k); if (el) el.innerHTML = h; };
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
   (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
+  R.zeilen.forEach(z => {
+    // A brutto aus L × H: Feld sperren und den gerechneten Wert zeigen
+    const ab = document.querySelector(`input[data-b="entwurf.flaechen.#${z.flId}.Ab"]`);
+    if (ab && ab !== document.activeElement) {
+      ab.readOnly = z.masz; ab.title = z.masz ? 'aus Länge × Höhe' : '';
+      ab.value = z.masz ? (ok(z.Ab) ? W(z.Ab, 2) : '') : hole(ab.dataset.b);
+    }
+  });
   R.zeilen.forEach(z => { set('an:' + z.flId, W(z.bezug, 2)); set('phi:' + z.flId, `<span class="${z.gewinn ? 'gewinn' : ''}">${W(z.phi)}</span>`); });
   set('lu', R.verfahren === 'dints2020'
     ? `A<sub>env</sub> = ${W(w.Aenv, 2)} · θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · q<sub>V,env</sub> = ${W(w.qenv, 2)} · q<sub>V,min</sub> = ${W(w.Vmin, 2)} · q<sub>V,env/min</sub> = ${W(w.qenvmin, 2)}`
@@ -836,7 +846,8 @@ function exportXlsx() {
       const fF = !v ? '' : f.an === 'aussen' ? 1 : f.an === 'unbeheiztBu' ? { f: `I${h}`, v: zr.f }
         : f.an === 'erdreich' ? { f: `${NR.fg1}*((Räume!J${z}-${NR.tme})/(Räume!J${z}-${NR.te}))*${NR.Gw}`, v: zr.f } : { f: `(Räume!J${z}-I${h})/(Räume!J${z}-${NR.te})`, v: zr.f };
       const uk = !v ? '' : zr.ukName === 'U_equiv' ? n(f.Uequiv) : zr.ukName === 'U' ? { f: BU[f.bauteilId], v: zr.Uk } : { f: BR[f.bauteilId], v: zr.Uk };
-      hr.push([r.nr, (S.bauteile.find(b => b.id === f.bauteilId) || {}).name || '', f.ausrichtung, ANGRENZUNG[f.an] || '', n(f.Ab), n(f.Az), { f: `E${h}-F${h}`, v: zr.bezug }, uk,
+      hr.push([r.nr, (S.bauteile.find(b => b.id === f.bauteilId) || {}).name || '', f.ausrichtung, ANGRENZUNG[f.an] || '',
+        zr.masz ? (ok(zr.Ab) ? { f: `${zr.fL}*${zr.fH}`, v: zr.Ab } : '') : n(f.Ab), n(f.Az), { f: `E${h}-F${h}`, v: zr.bezug }, uk,
         ['unbeheizt', 'beheizt', 'unbeheiztBu'].includes(f.an) ? n(f.thetaX) : '', fF, v ? { f: `Räume!K${z}`, v: w.dth } : '', v ? { f: `G${h}*H${h}*J${h}*K${h}`, v: zr.phi } : '']);
     });
     const h1 = hr.length;

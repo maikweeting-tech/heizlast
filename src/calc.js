@@ -136,6 +136,7 @@ const EINHEITEN_SCHRITTE = [
   { schritt: 'Δθ = θ_int − θ_e', mal: ['K'], soll: 'K' },
   { schritt: 'U_c = U + ΔU_WB', mal: ['W/(m²·K)'], soll: 'W/(m²·K)' },
   { schritt: 'A_k = A_brutto − A_Öffnungen', mal: ['m²'], soll: 'm²' },
+  { schritt: 'A_brutto = L · H', mal: ['m', 'm'], soll: 'm²' },
   { schritt: 'f_g2, b_u, f_ij, f_V,su = Δθ / Δθ', mal: ['K'], durch: ['K'], soll: '–' },
   { schritt: 'f_g = f_g1 · f_g2 · G_w', mal: ['–', '–', '–'], soll: '–' },
   { schritt: 'Φ_T,k = A_k · U_k · f · Δθ', mal: ['m²', 'W/(m²·K)', '–', 'K'], soll: 'W' },
@@ -188,7 +189,7 @@ function leererRaum() {
 }
 function leereTeilflaeche() { return { id: neueId('tf'), bez: '', L: '', B: '', minus: false }; }
 function leereFlaeche() {
-  return { id: neueId('f'), bauteilId: '', ausrichtung: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '', buQuelle: '' };
+  return { id: neueId('f'), bauteilId: '', ausrichtung: '', fL: '', fH: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '', buQuelle: '' };
 }
 // Aufheizzuschlag-Modus (ältere Projekte: Φ_RH direkt eingetragen)
 const rhModusVon = r => r.rhModus || (r.phiRH !== undefined && String(r.phiRH).trim() !== '' ? 'direkt' : '');
@@ -278,7 +279,14 @@ function rechneRaum(raum, P) {
         p.bed(bt.schichtenGeprueft, `bt.${bt.id}.schichtenGeprueft`, `Bauteil „${nameOd(bt.name, '?')}“: Schichtwerte ohne Quelle (${bt.ungeprueft.join(', ')}) – prüfen und abhaken`);
     }
     const Uc = U + dU;
-    const Ab = p.ein(fl.Ab, fp + '.Ab', `${nrT}: Fläche brutto`);
+    // Bruttofläche direkt oder aus Länge × Höhe (sobald eines der beiden Maße eingetragen ist)
+    const masz = String(fl.fL == null ? '' : fl.fL).trim() !== '' || String(fl.fH == null ? '' : fl.fH).trim() !== '';
+    let fL = NaN, fH = NaN, Ab;
+    if (masz) {
+      fL = p.ein(fl.fL, fp + '.fL', `${nrT}: Länge`);
+      fH = p.ein(fl.fH, fp + '.fH', `${nrT}: Höhe`);
+      Ab = fL * fH;
+    } else Ab = p.ein(fl.Ab, fp + '.Ab', `${nrT}: Fläche brutto (oder Länge × Höhe)`);
     const Az = p.ein(fl.Az, fp + '.Az', `${nrT}: Abzug Öffnungen (0 eintragen, wenn keine)`);
     const An = Ab - Az;
     if (ok(An)) p.bed(An >= 0, fp + '.Az', `${nrT}: Abzug größer als Bruttofläche`);
@@ -319,7 +327,7 @@ function rechneRaum(raum, P) {
     const phi = An * Uk * f * dth;
     zeilen.push({
       typ: 'T', flId: fl.id, label: `${bt ? nameOd(bt.name, 'Bauteil') : 'Bauteil ?'}${fl.ausrichtung ? ' (' + fl.ausrichtung + ')' : ''}`,
-      an: fl.an, bezug: An, einheit: 'm²', Ab, Az, U, dU, Uk, ukName, f, fText, fWerte, dth, phi, gewinn: ok(phi) && phi < 0
+      an: fl.an, bezug: An, einheit: 'm²', Ab, Az, masz, fL, fH, U, dU, Uk, ukName, f, fText, fWerte, dth, phi, gewinn: ok(phi) && phi < 0
     });
   });
   const phiT = zeilen.reduce((a, z) => a + z.phi, 0);
