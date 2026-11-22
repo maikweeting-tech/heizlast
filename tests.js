@@ -273,7 +273,13 @@ pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
   const G = { dach: 'flach', geschosse: [{ name: '1.OG', beheizt: true }, { name: 'EG', beheizt: true }, { name: 'KG', beheizt: false, keller: true }] };
   const svg = SN.schnittSvg(G, [bt('Flachdach', 'Dach'), bt('AW', 'Außenwand')]);
   pruefe('Schnitt: Geschosse und Bauteile im SVG', ['1.OG', 'EG', 'KG', 'Flachdach', 'AW (U_c 0,23)', 'Kellerdecke', 'Bodenplatte Keller'].every(t => svg.includes(t)), true);
-  pruefe('Schnitt: fehlende Bauteile rot markiert', (svg.match(/nicht benannt/g) || []).length, 5);
+  // Fenster, Geschossdecke, Kellerdecke rot; Kellerwand/-sohle beim unbeheizten Keller nur grau
+  pruefe('Schnitt: fehlende Bauteile rot markiert', (svg.match(/nicht benannt/g) || []).length, 3);
+  pruefe('Schnitt: unbeheizter Keller – Wand/Sohle „nicht nötig“', (svg.match(/nicht nötig \(Keller unbeheizt\)/g) || []).length, 2);
+  const svgW = SN.schnittSvg({ ...G, geschosse: G.geschosse.map(g => g.keller ? { ...g, beheizt: true } : g) }, [bt('Flachdach', 'Dach')]);
+  pruefe('Schnitt: beheizter Keller – Wand/Sohle rot', (svgW.match(/nicht benannt/g) || []).length, 6);
+  const svgT = SN.schnittSvg(G, [{ ...bt('Bodenplatte EG', 'Kellerdecke / gegen Erdreich'), lage: 'bodenplatte_ok' }]);
+  pruefe('Schnitt: Bodenplatte ohne Keller (Teilunterkellerung)', svgT.includes('Bodenplatte ohne Keller (Erdreich)') && svgT.includes('Bodenplatte EG (U_c 0,23)'), true);
   pruefe('Schnitt: ohne Geschosse keine Skizze', SN.schnittSvg({ geschosse: [] }, []), '');
 }
 

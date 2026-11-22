@@ -294,7 +294,7 @@ function bauteilNachweiseHtml() {
     const glT = !gl ? '–' : gl.muFehlt ? `μ fehlt: ${esc(gl.muFehlt.join(', '))}`
       : !gl.tauwasser ? `kein Tauwasser<br>${ja(true, 'erfüllt')}`
       : `M<sub>c</sub> = ${v(gl.mc, 3)} ≤ ${v(gl.mcGrenze, 3)} kg/m²<br>M<sub>ev</sub> = ${v(gl.mev, 3)} ≥ M<sub>c</sub><br>${ja(gl.ok, gl.ok ? 'zulässig' : 'unzulässig')}`;
-    const AS = { luft: 'Außenluft', erdreich: 'Erdreich', innen: 'Innenraum/Keller' };
+    const AS = { luft: 'Außenluft', erdreich: 'Erdreich', innen: 'R_se = R_si (unbeheizter Raum oder belüftete Luftschicht)' };
     const rb = n.rb ? `<div class="aufbau-kurz">θ<sub>i</sub> ${v(n.rb.ti, 1)} °C / θ<sub>e</sub> ${v(n.rb.te, 1)} °C${m && m.din ? ` · DIN 4108-2:${esc(m.din)}` : ''}${n.rb.aussenseite ? ` · außen: ${esc(AS[n.rb.aussenseite] || n.rb.aussenseite)}${ok(n.rb.rse) ? ` (R<sub>se</sub> ${v(n.rb.rse, 2)})` : ''}` : ''}</div>` : '';
     return `<tr><td>${esc(b.name)}${rb}</td><td>${minT}</td><td>${gT}</td><td>${sT}</td><td>${glT}</td></tr>`;
   }).join('');
@@ -625,12 +625,6 @@ function blattHtml() {
   NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${normBadge(n)[0]}">${normBadge(n)[1]}</span>: ${esc(n.text)}</li>`));
   if (tsV) quellen.push(`<li>Rechenweg DIN/TS 12831-1:2020 (Lüftung, Gebäudeheizlast): ${esc(QUELLE_WBS)}. Rückgerechnet, nicht gegen den Normtext geprüft.</li>`);
   quellen.push(`<li>Rechenweg DIN EN 12831:2003${tsV ? ' (Transmission)' : ''}: ${esc(QUELLE_LAASCH)}</li>`);
-  const alleNW = [];
-  N.standorte.forEach(s => { alleNW.push([`θ_e ${s.name}`, s.te, '°C']); alleNW.push([`θ_m,e ${s.name}`, s.tme, '°C']); });
-  N.raumarten.forEach(r => { alleNW.push([`θ_int ${r.name}`, r.tint, '°C']); alleNW.push([`n_min ${r.name}`, r.nmin, '1/h']); });
-  alleNW.push(['f_g1', N.fg1, '–'], ['G_w', N.Gw, '–'], ['ρ·c_p', N.rhocp, 'Wh/(m³·K)'], ['q_env,50', N.qenv50, 'm³/(h·m²)'], ['f_env', N.fenv, '–'], ['f_Geb', N.fGeb, '–']);
-  N.e.forEach(x => alleNW.push([`e ${x.klasse}`, x.w, '–'])); N.eps.forEach(x => alleNW.push([`ε ${x.klasse}`, x.w, '–']));
-  const nwListe = alleNW.filter(([, n]) => ok(num(n.wert))).map(([t, n, e]) => `<tr><td>${idx(esc(t))}</td><td class="z">${esc(n.wert)}${e === '–' ? '' : ' ' + e}</td><td>${esc(n.quelle) || '–'}</td><td>${stTxt(n)}</td></tr>`).join('');
   const btQ = S.bauteile.map(b => `<li>${esc(b.name)}: ${esc(b.quelle) || '<span class="no">Quelle fehlt</span>'}</li>`).join('');
   const unvoll = G.raeume.filter(r => !r.vollstaendig).length;
   return `
@@ -665,7 +659,7 @@ function blattHtml() {
   <tbody><tr><td>Wärmeerzeuger bei θ<sub>e</sub>: ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ≤ Φ<sub>WE</sub></td><td class="z">${G.geb ? W(G.geb.phiHL / 1000, 2) : '–'}</td><td class="z">${ok(num(P.phiWE)) ? W(num(P.phiWE), 2) : '–'}</td><td class="z">${nw ? W(nw.eta, 3) : '–'}</td><td>${nw ? (nw.erfuellt ? '<span class="ok">ja</span>' : '<span class="no">nein</span>') : '–'}</td></tr></tbody></table></div>
   <h2><span class="nr">6</span>Quellen und geprüfte Normwerte</h2>
   <ul>${quellen.join('')}</ul>
-  <div class="block"><table><thead><tr><th>Normwert</th><th class="z">Wert</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${nwListe || '<tr><td colspan="4">Keine Normwerte eingetragen.</td></tr>'}</tbody></table></div>
+  <p><b>Normwerte:</b> Alle in der Rechnung verwendeten Normwerte stehen mit Quelle und Prüfstatus in Abschnitt 1 (Randbedingungen). Einträge der Normwert-Tabelle, die kein Raum verwendet, werden nicht gedruckt.</p>
   <p><b>Bauteile:</b></p><ul>${btQ || '<li>–</li>'}</ul>
   <p>Excel-Vorlage: TGA_Kita_Wesel_Berechnung, Blatt „Heizlast“ und „Folienwerte“ (F2_Rechenweg) – Rechenweg und Tabellenaufbau.</p>
   <div class="fuss"><span>Lern- und Vorplanungswerkzeug auf Technikerniveau – ersetzt keine TGA-Fachplanung. Nicht enthalten: Rohrnetz, Heizflächenauslegung, Kühllast.</span><span>${esc(P.bearbeiter)}</span></div>`;

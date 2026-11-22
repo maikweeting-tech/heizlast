@@ -14,6 +14,7 @@ const LAGEN = {
   kellerdecke: 'Kellerdecke',
   kelleraussenwand: 'Kelleraußenwand (Erdreich)',
   bodenplatte: 'Bodenplatte (Erdreich)',
+  bodenplatte_ok: 'Bodenplatte ohne Keller (Teil des untersten Geschosses auf Erdreich)',
   keine: 'nicht im Schnitt (z. B. Innenwand)'
 };
 
@@ -87,9 +88,10 @@ function schnittSvg(G, bauteile, opt = {}) {
 
   // Beschriftungen: links und rechts, Überlappung vermeiden
   const marken = { L: [], R: [] };
-  const marke = (seite, lage, ax, ay, titel) => {
+  // leer: Text, wenn kein Bauteil benannt ist ('' = rot „nicht benannt“)
+  const marke = (seite, lage, ax, ay, titel, leer) => {
     const liste = bl[lage] || [];
-    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3) });
+    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3), leer });
   };
   const ersterOben = gs.findIndex(g => !g.keller);
   const ersterKeller = gs.findIndex(g => g.keller);
@@ -102,8 +104,16 @@ function schnittSvg(G, bauteile, opt = {}) {
   const gd = gs.findIndex((g, i) => i > 0 && !!g.keller === !!gs[i - 1].keller);
   if (gd > 0) marke('R', 'geschossdecke', xR + wand, y(gd));
   if (ersterKeller > 0) marke('R', 'kellerdecke', xR + wand, y(ersterKeller));
-  if (ersterKeller >= 0) marke('L', 'kelleraussenwand', xL - wand, y(ersterKeller) + h / 2);
-  marke('L', 'bodenplatte', xL, yBot, ersterKeller >= 0 ? 'Bodenplatte Keller (Erdreich)' : 'Bodenplatte (Erdreich)');
+  // Unbeheizter Keller: Wand und Sohle gehen nicht in die Heizlast ein – fehlende Bauteile nicht rot
+  const kellerKalt = ersterKeller >= 0 && gs.slice(ersterKeller).every(g => g.keller && !g.beheizt);
+  const kaltTxt = kellerKalt ? 'nicht nötig (Keller unbeheizt)' : '';
+  if (ersterKeller >= 0) marke('L', 'kelleraussenwand', xL - wand, y(ersterKeller) + h / 2, null, kaltTxt);
+  marke('L', 'bodenplatte', xL, yBot, ersterKeller >= 0 ? 'Bodenplatte Keller (Erdreich)' : 'Bodenplatte (Erdreich)', ersterKeller >= 0 ? kaltTxt : '');
+  // Teilunterkellerung: Bodenplatte des untersten Geschosses über Gelände, wo kein Keller ist
+  if (ersterKeller >= 0 && (bl.bodenplatte_ok || []).length) {
+    s += `<rect x="${xL - wand - 24}" y="${y(ersterKeller) - 4}" width="24" height="8" fill="#5a5048"/>`;
+    marke('L', 'bodenplatte_ok', xL - wand - 12, y(ersterKeller), 'Bodenplatte ohne Keller (Erdreich)');
+  }
 
   const zeileH = 13;
   ['L', 'R'].forEach(seite => {
@@ -120,7 +130,7 @@ function schnittSvg(G, bauteile, opt = {}) {
       s += `<polyline points="${k.ax},${k.ay} ${seite === 'L' ? tx + 6 : tx - 6},${ly}" fill="none" stroke="#5b6470" stroke-width="1"/><circle cx="${k.ax}" cy="${k.ay}" r="2.5" fill="#5b6470"/>`;
       s += `<text x="${seite === 'L' ? tx : tx}" y="${ly}" text-anchor="${anker}" class="sn-b">${schnittEsc(k.titel)}</text>`;
       if (k.zeilen) k.zeilen.forEach((z, j) => { s += `<text x="${tx}" y="${ly + (j + 1) * zeileH}" text-anchor="${anker}" class="sn-t">${schnittEsc(z)}</text>`; });
-      else s += `<text x="${tx}" y="${ly + zeileH}" text-anchor="${anker}" class="sn-no">nicht benannt</text>`;
+      else s += `<text x="${tx}" y="${ly + zeileH}" text-anchor="${anker}" class="${k.leer ? 'sn-k' : 'sn-no'}">${k.leer ? schnittEsc(k.leer) : 'nicht benannt'}</text>`;
       if (k.mehr) s += `<text x="${tx}" y="${ly + (k.zeilen.length + 1) * zeileH}" text-anchor="${anker}" class="sn-k">+ ${k.mehr} weitere</text>`;
     });
   });

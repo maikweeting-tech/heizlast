@@ -939,6 +939,7 @@ const LAGEN = {
   kellerdecke: 'Kellerdecke',
   kelleraussenwand: 'Kelleraußenwand (Erdreich)',
   bodenplatte: 'Bodenplatte (Erdreich)',
+  bodenplatte_ok: 'Bodenplatte ohne Keller (Teil des untersten Geschosses auf Erdreich)',
   keine: 'nicht im Schnitt (z. B. Innenwand)'
 };
 
@@ -1012,9 +1013,10 @@ function schnittSvg(G, bauteile, opt = {}) {
 
   // Beschriftungen: links und rechts, Überlappung vermeiden
   const marken = { L: [], R: [] };
-  const marke = (seite, lage, ax, ay, titel) => {
+  // leer: Text, wenn kein Bauteil benannt ist ('' = rot „nicht benannt“)
+  const marke = (seite, lage, ax, ay, titel, leer) => {
     const liste = bl[lage] || [];
-    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3) });
+    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3), leer });
   };
   const ersterOben = gs.findIndex(g => !g.keller);
   const ersterKeller = gs.findIndex(g => g.keller);
@@ -1027,8 +1029,16 @@ function schnittSvg(G, bauteile, opt = {}) {
   const gd = gs.findIndex((g, i) => i > 0 && !!g.keller === !!gs[i - 1].keller);
   if (gd > 0) marke('R', 'geschossdecke', xR + wand, y(gd));
   if (ersterKeller > 0) marke('R', 'kellerdecke', xR + wand, y(ersterKeller));
-  if (ersterKeller >= 0) marke('L', 'kelleraussenwand', xL - wand, y(ersterKeller) + h / 2);
-  marke('L', 'bodenplatte', xL, yBot, ersterKeller >= 0 ? 'Bodenplatte Keller (Erdreich)' : 'Bodenplatte (Erdreich)');
+  // Unbeheizter Keller: Wand und Sohle gehen nicht in die Heizlast ein – fehlende Bauteile nicht rot
+  const kellerKalt = ersterKeller >= 0 && gs.slice(ersterKeller).every(g => g.keller && !g.beheizt);
+  const kaltTxt = kellerKalt ? 'nicht nötig (Keller unbeheizt)' : '';
+  if (ersterKeller >= 0) marke('L', 'kelleraussenwand', xL - wand, y(ersterKeller) + h / 2, null, kaltTxt);
+  marke('L', 'bodenplatte', xL, yBot, ersterKeller >= 0 ? 'Bodenplatte Keller (Erdreich)' : 'Bodenplatte (Erdreich)', ersterKeller >= 0 ? kaltTxt : '');
+  // Teilunterkellerung: Bodenplatte des untersten Geschosses über Gelände, wo kein Keller ist
+  if (ersterKeller >= 0 && (bl.bodenplatte_ok || []).length) {
+    s += `<rect x="${xL - wand - 24}" y="${y(ersterKeller) - 4}" width="24" height="8" fill="#5a5048"/>`;
+    marke('L', 'bodenplatte_ok', xL - wand - 12, y(ersterKeller), 'Bodenplatte ohne Keller (Erdreich)');
+  }
 
   const zeileH = 13;
   ['L', 'R'].forEach(seite => {
@@ -1045,7 +1055,7 @@ function schnittSvg(G, bauteile, opt = {}) {
       s += `<polyline points="${k.ax},${k.ay} ${seite === 'L' ? tx + 6 : tx - 6},${ly}" fill="none" stroke="#5b6470" stroke-width="1"/><circle cx="${k.ax}" cy="${k.ay}" r="2.5" fill="#5b6470"/>`;
       s += `<text x="${seite === 'L' ? tx : tx}" y="${ly}" text-anchor="${anker}" class="sn-b">${schnittEsc(k.titel)}</text>`;
       if (k.zeilen) k.zeilen.forEach((z, j) => { s += `<text x="${tx}" y="${ly + (j + 1) * zeileH}" text-anchor="${anker}" class="sn-t">${schnittEsc(z)}</text>`; });
-      else s += `<text x="${tx}" y="${ly + zeileH}" text-anchor="${anker}" class="sn-no">nicht benannt</text>`;
+      else s += `<text x="${tx}" y="${ly + zeileH}" text-anchor="${anker}" class="${k.leer ? 'sn-k' : 'sn-no'}">${k.leer ? schnittEsc(k.leer) : 'nicht benannt'}</text>`;
       if (k.mehr) s += `<text x="${tx}" y="${ly + (k.zeilen.length + 1) * zeileH}" text-anchor="${anker}" class="sn-k">+ ${k.mehr} weitere</text>`;
     });
   });
@@ -1353,7 +1363,7 @@ function bauteilNachweiseHtml() {
     const glT = !gl ? '–' : gl.muFehlt ? `μ fehlt: ${esc(gl.muFehlt.join(', '))}`
       : !gl.tauwasser ? `kein Tauwasser<br>${ja(true, 'erfüllt')}`
       : `M<sub>c</sub> = ${v(gl.mc, 3)} ≤ ${v(gl.mcGrenze, 3)} kg/m²<br>M<sub>ev</sub> = ${v(gl.mev, 3)} ≥ M<sub>c</sub><br>${ja(gl.ok, gl.ok ? 'zulässig' : 'unzulässig')}`;
-    const AS = { luft: 'Außenluft', erdreich: 'Erdreich', innen: 'Innenraum/Keller' };
+    const AS = { luft: 'Außenluft', erdreich: 'Erdreich', innen: 'R_se = R_si (unbeheizter Raum oder belüftete Luftschicht)' };
     const rb = n.rb ? `<div class="aufbau-kurz">θ<sub>i</sub> ${v(n.rb.ti, 1)} °C / θ<sub>e</sub> ${v(n.rb.te, 1)} °C${m && m.din ? ` · DIN 4108-2:${esc(m.din)}` : ''}${n.rb.aussenseite ? ` · außen: ${esc(AS[n.rb.aussenseite] || n.rb.aussenseite)}${ok(n.rb.rse) ? ` (R<sub>se</sub> ${v(n.rb.rse, 2)})` : ''}` : ''}</div>` : '';
     return `<tr><td>${esc(b.name)}${rb}</td><td>${minT}</td><td>${gT}</td><td>${sT}</td><td>${glT}</td></tr>`;
   }).join('');
@@ -1684,12 +1694,6 @@ function blattHtml() {
   NORMSTAND.forEach(n => quellen.push(`<li>${esc(n.norm)} – <span class="${normBadge(n)[0]}">${normBadge(n)[1]}</span>: ${esc(n.text)}</li>`));
   if (tsV) quellen.push(`<li>Rechenweg DIN/TS 12831-1:2020 (Lüftung, Gebäudeheizlast): ${esc(QUELLE_WBS)}. Rückgerechnet, nicht gegen den Normtext geprüft.</li>`);
   quellen.push(`<li>Rechenweg DIN EN 12831:2003${tsV ? ' (Transmission)' : ''}: ${esc(QUELLE_LAASCH)}</li>`);
-  const alleNW = [];
-  N.standorte.forEach(s => { alleNW.push([`θ_e ${s.name}`, s.te, '°C']); alleNW.push([`θ_m,e ${s.name}`, s.tme, '°C']); });
-  N.raumarten.forEach(r => { alleNW.push([`θ_int ${r.name}`, r.tint, '°C']); alleNW.push([`n_min ${r.name}`, r.nmin, '1/h']); });
-  alleNW.push(['f_g1', N.fg1, '–'], ['G_w', N.Gw, '–'], ['ρ·c_p', N.rhocp, 'Wh/(m³·K)'], ['q_env,50', N.qenv50, 'm³/(h·m²)'], ['f_env', N.fenv, '–'], ['f_Geb', N.fGeb, '–']);
-  N.e.forEach(x => alleNW.push([`e ${x.klasse}`, x.w, '–'])); N.eps.forEach(x => alleNW.push([`ε ${x.klasse}`, x.w, '–']));
-  const nwListe = alleNW.filter(([, n]) => ok(num(n.wert))).map(([t, n, e]) => `<tr><td>${idx(esc(t))}</td><td class="z">${esc(n.wert)}${e === '–' ? '' : ' ' + e}</td><td>${esc(n.quelle) || '–'}</td><td>${stTxt(n)}</td></tr>`).join('');
   const btQ = S.bauteile.map(b => `<li>${esc(b.name)}: ${esc(b.quelle) || '<span class="no">Quelle fehlt</span>'}</li>`).join('');
   const unvoll = G.raeume.filter(r => !r.vollstaendig).length;
   return `
@@ -1724,7 +1728,7 @@ function blattHtml() {
   <tbody><tr><td>Wärmeerzeuger bei θ<sub>e</sub>: ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ≤ Φ<sub>WE</sub></td><td class="z">${G.geb ? W(G.geb.phiHL / 1000, 2) : '–'}</td><td class="z">${ok(num(P.phiWE)) ? W(num(P.phiWE), 2) : '–'}</td><td class="z">${nw ? W(nw.eta, 3) : '–'}</td><td>${nw ? (nw.erfuellt ? '<span class="ok">ja</span>' : '<span class="no">nein</span>') : '–'}</td></tr></tbody></table></div>
   <h2><span class="nr">6</span>Quellen und geprüfte Normwerte</h2>
   <ul>${quellen.join('')}</ul>
-  <div class="block"><table><thead><tr><th>Normwert</th><th class="z">Wert</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${nwListe || '<tr><td colspan="4">Keine Normwerte eingetragen.</td></tr>'}</tbody></table></div>
+  <p><b>Normwerte:</b> Alle in der Rechnung verwendeten Normwerte stehen mit Quelle und Prüfstatus in Abschnitt 1 (Randbedingungen). Einträge der Normwert-Tabelle, die kein Raum verwendet, werden nicht gedruckt.</p>
   <p><b>Bauteile:</b></p><ul>${btQ || '<li>–</li>'}</ul>
   <p>Excel-Vorlage: TGA_Kita_Wesel_Berechnung, Blatt „Heizlast“ und „Folienwerte“ (F2_Rechenweg) – Rechenweg und Tabellenaufbau.</p>
   <div class="fuss"><span>Lern- und Vorplanungswerkzeug auf Technikerniveau – ersetzt keine TGA-Fachplanung. Nicht enthalten: Rohrnetz, Heizflächenauslegung, Kühllast.</span><span>${esc(P.bearbeiter)}</span></div>`;
