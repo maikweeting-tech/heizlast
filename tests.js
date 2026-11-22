@@ -93,6 +93,9 @@ const P9 = testprojekt(); const bt9 = Object.assign(P9.bauteile[0], { herkunft: 
 pruefe('ungeprüfte Schichten → Raum unvollständig', C.rechneRaum(P9.raeume[0], P9).fehlt.some(x => x.pfad === `bt.${bt9.id}.schichtenGeprueft`), true);
 bt9.schichtenGeprueft = true;
 pruefe('Schichtwerte abgehakt → Raum vollständig', C.rechneRaum(P9.raeume[0], P9).vollstaendig, true);
+const b3 = C.bauteilAusWaermeschutz({ name: 'BP', U: 0.211, RT: 4.744, dU: 0, schichten: [{ name: 'Stahlbeton', d: 30, lambda: 2.3, R: 0.13, quelle: 'DIN 4108-4' }, { name: 'XPS', d: 16, lambda: 0.036, R: 4.444, quelle: '' }] });
+pruefe('Import: Schichtaufbau übernommen', b3.schichten.map(s => `${s.name}/${s.d}/${s.lambda}/${s.R}`).join('|') + '|' + b3.RT, 'Stahlbeton/30/2.3/0.13|XPS/16/0.036/4.444|4.744');
+pruefe('Import: ohne Schichten leere Liste', b2.schichten.length, 0);
 pruefe('Import: ungültiges Bauteil abgelehnt', C.bauteilAusWaermeschutz({ name: 'x' }), null);
 
 // ── Sonderfälle ────────────────────────────────────────────────────────────

@@ -389,7 +389,15 @@ function bauteilAusWaermeschutz(b) {
   return { id: neueId('bt'), name: String(b.name), art: String(b.art || ''), U: String(b.U).replace('.', ','), dUWB: '',
            quelle: String(b.quelle || `Wärmeschutz-App, Bauteil „${b.name}“`), herkunft: 'waermeschutz', wsId: b.id || '', dUWBQuelle: '',
            // Schichten ohne belegte Quelle (λ „ungeprüft“, eigene Eingabe, Luftschicht-Tabelle) → Haken nötig
-           ungeprueft: Array.isArray(b.ungeprueft) ? b.ungeprueft.map(String) : [], schichtenGeprueft: false };
+           ungeprueft: Array.isArray(b.ungeprueft) ? b.ungeprueft.map(String) : [], schichtenGeprueft: false,
+           // Schichtaufbau innen → außen (d in cm), nur zur Anzeige
+           schichten: schichtenAus(b.schichten), RT: ok(num(b.RT)) ? num(b.RT) : null, dU: ok(num(b.dU)) ? num(b.dU) : null };
+}
+function schichtenAus(l) {
+  if (!Array.isArray(l)) return [];
+  return l.filter(s => s && typeof s === 'object').map(s => ({
+    name: String(s.name || ''), d: ok(num(s.d)) ? num(s.d) : null, lambda: ok(num(s.lambda)) ? num(s.lambda) : null,
+    R: ok(num(s.R)) ? num(s.R) : null, quelle: String(s.quelle || '') }));
 }
 function leseBauteilDatei(obj) {
   if (obj && obj.format === 'fh21.bauteile' && Array.isArray(obj.bauteile)) return obj.bauteile;

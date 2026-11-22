@@ -214,7 +214,8 @@ function rBauteile() {
       <td>${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</td>
       <td>${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="Quelle ΔU_WB (optional)"')}</td>
       <td>${ws ? '<span class="status ok">Wärmeschutz-App</span>' : '<span class="status pr">manuell</span>'}${ws && (b.ungeprueft || []).length ? `<div class="klein" style="margin-top:4px;white-space:normal;min-width:180px">ohne Quelle: ${esc(b.ungeprueft.join(', '))}<br><label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}</td>
-      <td class="no-print"><button class="btn-icon" data-a="bt-weg" data-id="${b.id}" title="Bauteil löschen">×</button></td></tr>`;
+      <td class="no-print"><button class="btn-icon" data-a="bt-weg" data-id="${b.id}" title="Bauteil löschen">×</button></td></tr>
+      <tr class="aufbau-zeile"><td colspan="9">${ws ? aufbauHtml(b) : `<label class="aufbau-feld">Aufbau <span class="einh">(innen → außen, optional)</span> ${inp(pb + '.aufbau', '', 'q', 'placeholder="z. B. 1,5 cm Putz · 17,5 cm KS · 18 cm Mineralwolle · Vormauerschale"')}</label>`}</td></tr>`;
   }).join('');
   return `<div class="karte"><h2>Bauteilkatalog</h2>
     <p class="hinweis">U-Werte kommen aus der Wärmeschutz-App (Name als Quelle) oder werden von Hand mit Quelle eingetragen. ΔU<sub>WB</sub> ist immer eine Eingabe; U<sub>c</sub> = U + ΔU<sub>WB</sub> rechnet die App.</p>
@@ -227,6 +228,19 @@ function rBauteile() {
     ${S.bauteile.length ? `<div class="tabwrap"><table class="tab"><tr><th>Name</th><th>Bauteilart ${info('bauteilart')}</th><th class="zahl">U ${info('U')}<br>W/(m²·K)</th><th class="zahl">ΔU<sub>WB</sub> ${info('dUWB')}<br>W/(m²·K)</th><th class="zahl">U<sub>c</sub> ${info('Uc')}<br>W/(m²·K)</th><th>Quelle U ${info('quelle')}</th><th>Quelle ΔU<sub>WB</sub></th><th>Herkunft ${info('herkunft')}</th><th></th></tr>${zeilen}</table></div>`
       : '<p class="hinweis">Noch keine Bauteile.</p>'}
   </div>`;
+}
+// Schichtaufbau eines Bauteils aus der Wärmeschutz-App (innen → außen)
+function aufbauHtml(b) {
+  const sch = b.schichten || [];
+  if (!sch.length) return '<span class="klein hinweis">Aufbau nicht gespeichert (vor dem 22.11.2026 übernommen) – im Tab „2 Wärmeschutz“ das Bauteil laden und erneut übergeben.</span>';
+  const z = sch.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.name) || '–'}</td><td class="zahl">${ok(s.d) ? W(s.d, 1) : '–'}</td><td class="zahl">${ok(s.lambda) ? W(s.lambda, 3) : '–'}</td><td class="zahl">${ok(s.R) ? W(s.R, 3) : '–'}</td><td class="klein">${esc(s.quelle) || '–'}</td></tr>`).join('');
+  return `<details class="aufbau"><summary>Aufbau: ${sch.length} Schicht${sch.length === 1 ? '' : 'en'} (innen → außen)${ok(b.RT) ? ` · R<sub>T</sub> = ${W(b.RT, 3)} m²K/W` : ''}${ok(b.dU) && b.dU ? ` · ΔU = ${W(b.dU, 3)}` : ''}</summary>
+    <table class="tab klein"><tr><th>Nr.</th><th>Schicht</th><th class="zahl">d in cm</th><th class="zahl">λ in W/(m·K)</th><th class="zahl">R in m²K/W</th><th>Quelle λ</th></tr>${z}</table></details>`;
+}
+// Kurzform für die Vorzeigeseite
+function aufbauKurz(b) {
+  if (b.herkunft !== 'waermeschutz') return esc(b.aufbau || '');
+  return (b.schichten || []).map(s => `${ok(s.d) ? W(s.d, 1) + ' cm ' : ''}${esc(s.name)}`).join(' · ');
 }
 function ucText(b) { const u = num(b.U) + num(b.dUWB); return ok(u) ? W(u, 3) : '<span class="status no">fehlt</span>'; }
 
@@ -491,7 +505,7 @@ function blattHtml() {
   const vf = VERFAHREN[S.optionen.verfahren];
   const varTxt = vf ? `<li><b>${esc(vf.titel)}</b>: ${idx(esc(vf.text))}</li><li>Nicht abgebildet: ${idx(esc(HINWEIS_2017))}</li>` : '<li><span class="no">Kein Rechenverfahren gewählt.</span></li>';
   const raeumeHtml = G.raeume.map((R, i) => { const r = S.raeume[i]; return `<tr><td>${esc(r.nr)}</td><td>${esc(r.name)}</td><td class="z">${v(R.w.A, 2)}</td><td class="z">${v(R.w.V, 1)}</td><td class="z">${v(R.w.tint, 1)}</td><td class="z">${v(R.phiT, 0)}</td><td class="z">${v(R.phiV, 0)}</td><td class="z">${R.vollstaendig && R.rhGesetzt ? v(R.phiRH, 0) : '–'}</td><td class="z"><b>${v(R.phiHL, 0)}</b></td><td class="z">${v(R.phiSpez, 1)}</td><td>${R.vollstaendig ? '<span class="ok">vollst.</span>' : '<span class="no">unvollst.</span>'}</td></tr>`; }).join('');
-  const btHtml = S.bauteile.map(b => { const u = num(b.U), d = num(b.dUWB); return `<tr><td>${esc(b.name)}</td><td>${esc(b.art)}</td><td class="z">${v(u, 3)}</td><td class="z">${v(d, 3)}</td><td class="z"><b>${v(u + d, 3)}</b></td><td>${esc(b.quelle)}${b.dUWBQuelle ? '; ΔU_WB: ' + esc(b.dUWBQuelle) : ''}</td></tr>`; }).join('');
+  const btHtml = S.bauteile.map(b => { const u = num(b.U), d = num(b.dUWB), ak = aufbauKurz(b); return `<tr><td>${esc(b.name)}${ak ? `<div class="aufbau-kurz">${ak}</div>` : ''}</td><td>${esc(b.art)}</td><td class="z">${v(u, 3)}</td><td class="z">${v(d, 3)}</td><td class="z"><b>${v(u + d, 3)}</b></td><td>${esc(b.quelle)}${b.dUWBQuelle ? '; ΔU_WB: ' + esc(b.dUWBQuelle) : ''}</td></tr>`; }).join('');
   const rwH2 = '<h2><span class="nr">4</span>Rechenweg (Formel → Werte → Ergebnis)</h2>';
   // Reihenfolge wie in der Raumtabelle; h2 steht im ersten Block, damit er nicht allein am Seitenende bleibt
   const rwTeile = S.raeume.map((rv, i) => [rv, G.raeume[i]]).filter(([rv]) => gew.includes(rv.id)).map(([rv, RV], k) => {
@@ -662,7 +676,7 @@ function uebernimmBauteile(liste, ausRahmen = false) {
     const b = bauteilAusWaermeschutz(x); if (!b) return;
     if (b.ungeprueft.length) ungeprueft++;
     const alt = S.bauteile.find(y => y.herkunft === 'waermeschutz' && y.name === b.name);
-    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false }); akt++; }
+    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false, schichten: b.schichten, RT: b.RT, dU: b.dU }); akt++; }
     else { S.bauteile.push(b); neu++; }
   });
   speichern();
