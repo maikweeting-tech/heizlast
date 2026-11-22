@@ -130,6 +130,7 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .aufbau table { margin: 6px 0 4px; }
 .aufbau-feld { display: flex; gap: 8px; align-items: center; font-size: .85em; }
 .aufbau-feld input { flex: 1; }
+.aufbau-knopf { margin-top: 6px; }
 .blatt .aufbau-kurz { font-size: 7.5pt; color: #5b6470; }
 .vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
 .blatt p { margin: 0 0 5px; }

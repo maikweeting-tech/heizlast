@@ -181,6 +181,7 @@ function rWaerme() {
   const f = $('ws-rahmen');
   f.srcdoc = typeof WS_HTML === 'string' ? WS_HTML : '<p>Wärmeschutz-App nicht eingebaut.</p>';
   f.addEventListener('load', () => {
+    f.dataset.geladen = '1';
     try {
       const d = f.contentDocument;
       const hoehe = () => { f.style.height = Math.max(600, d.documentElement.scrollHeight + 4) + 'px'; };
@@ -232,7 +233,13 @@ function rBauteile() {
 // Schichtaufbau eines Bauteils aus der Wärmeschutz-App (innen → außen)
 function aufbauHtml(b) {
   const sch = b.schichten || [];
-  if (!sch.length) return '<span class="klein hinweis">Aufbau nicht gespeichert (vor dem 22.11.2026 übernommen) – im Tab „2 Wärmeschutz“ das Bauteil laden und erneut übergeben.</span>';
+  const knopf = b.wsZustand
+    ? `<button class="btn btn-klein no-print" data-a="ws-bearbeiten" data-id="${b.id}" title="Aufbau mit allen Randbedingungen in den Tab „2 Wärmeschutz“ laden">Im Wärmeschutz bearbeiten</button>`
+    : '<span class="klein hinweis no-print">Bearbeiten nicht möglich (Eingaben nicht gespeichert) – im Tab „2 Wärmeschutz“ neu eingeben und unter demselben Namen übergeben.</span>';
+  if (!sch.length) return `<span class="klein hinweis">Aufbau nicht gespeichert (vor dem 22.11.2026 übernommen).</span> ${knopf}`;
+  return aufbauTabelle(b, sch) + `<div class="aufbau-knopf">${knopf}</div>`;
+}
+function aufbauTabelle(b, sch) {
   const z = sch.map((s, i) => `<tr><td>${i + 1}</td><td>${esc(s.name) || '–'}</td><td class="zahl">${ok(s.d) ? W(s.d, 1) : '–'}</td><td class="zahl">${ok(s.lambda) ? W(s.lambda, 3) : '–'}</td><td class="zahl">${ok(s.R) ? W(s.R, 3) : '–'}</td><td class="klein">${esc(s.quelle) || '–'}</td></tr>`).join('');
   return `<details class="aufbau"><summary>Aufbau: ${sch.length} Schicht${sch.length === 1 ? '' : 'en'} (innen → außen)${ok(b.RT) ? ` · R<sub>T</sub> = ${W(b.RT, 3)} m²K/W` : ''}${ok(b.dU) && b.dU ? ` · ΔU = ${W(b.dU, 3)}` : ''}</summary>
     <table class="tab klein"><tr><th>Nr.</th><th>Schicht</th><th class="zahl">d in cm</th><th class="zahl">λ in W/(m·K)</th><th class="zahl">R in m²K/W</th><th>Quelle λ</th></tr>${z}</table></details>`;
@@ -656,6 +663,15 @@ const AKTION = {
   'auf'(d) { offen.has(d.id) ? offen.delete(d.id) : offen.add(d.id); },
   'ws-import'() { wsDialog(); return false; },
   'zu-waerme'() { zeigeTab('waerme'); return false; },
+  'ws-bearbeiten'(d) {
+    const b = S.bauteile.find(x => x.id === d.id);
+    if (!b || !b.wsZustand) return false;
+    zeigeTab('waerme');
+    const f = $('ws-rahmen'), nachricht = { typ: 'fh21.bauteil-laden', name: b.name, zustand: b.wsZustand };
+    const senden = () => f.contentWindow.postMessage(nachricht, '*');
+    if (f.dataset.geladen) senden(); else f.addEventListener('load', senden, { once: true });
+    return false;
+  },
   'json-import'() { $('datei').value = ''; $('datei').click(); return false; },
   'json-export'() { const n = (S.projekt.projekt || 'projekt').replace(/[^\wäöüÄÖÜß-]+/g, '_'); laden_(new Blob([JSON.stringify(S, null, 2)], { type: 'application/json' }), `heizlast_${n}.json`); return false; },
   'xlsx'() { exportXlsx(); return false; },
@@ -676,7 +692,7 @@ function uebernimmBauteile(liste, ausRahmen = false) {
     const b = bauteilAusWaermeschutz(x); if (!b) return;
     if (b.ungeprueft.length) ungeprueft++;
     const alt = S.bauteile.find(y => y.herkunft === 'waermeschutz' && y.name === b.name);
-    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false, schichten: b.schichten, RT: b.RT, dU: b.dU }); akt++; }
+    if (alt) { Object.assign(alt, { U: b.U, quelle: b.quelle, art: b.art, wsId: b.wsId, ungeprueft: b.ungeprueft, schichtenGeprueft: false, schichten: b.schichten, RT: b.RT, dU: b.dU, wsZustand: b.wsZustand }); akt++; }
     else { S.bauteile.push(b); neu++; }
   });
   speichern();

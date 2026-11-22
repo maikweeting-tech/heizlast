@@ -96,6 +96,9 @@ pruefe('Schichtwerte abgehakt → Raum vollständig', C.rechneRaum(P9.raeume[0],
 const b3 = C.bauteilAusWaermeschutz({ name: 'BP', U: 0.211, RT: 4.744, dU: 0, schichten: [{ name: 'Stahlbeton', d: 30, lambda: 2.3, R: 0.13, quelle: 'DIN 4108-4' }, { name: 'XPS', d: 16, lambda: 0.036, R: 4.444, quelle: '' }] });
 pruefe('Import: Schichtaufbau übernommen', b3.schichten.map(s => `${s.name}/${s.d}/${s.lambda}/${s.R}`).join('|') + '|' + b3.RT, 'Stahlbeton/30/2.3/0.13|XPS/16/0.036/4.444|4.744');
 pruefe('Import: ohne Schichten leere Liste', b2.schichten.length, 0);
+const b4 = C.bauteilAusWaermeschutz({ name: 'AW', U: 0.2, zustand: { f: { raum: 'normal', 'bef-aktiv': false, 'theta-i': 20 }, s: [['baustoff', '', 'KS', 17.5, '0,99', 'DIN 4108-4', 5]] } });
+pruefe('Import: Wärmeschutz-Eingaben zum Bearbeiten gespeichert', JSON.stringify(b4.wsZustand), '{"f":{"raum":"normal","bef-aktiv":false,"theta-i":"20"},"s":[["baustoff","","KS","17.5","0,99","DIN 4108-4","5"]]}');
+pruefe('Import: ohne Eingaben kein Bearbeiten', b2.wsZustand, null);
 pruefe('Import: ungültiges Bauteil abgelehnt', C.bauteilAusWaermeschutz({ name: 'x' }), null);
 
 // ── Sonderfälle ────────────────────────────────────────────────────────────

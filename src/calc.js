@@ -391,7 +391,15 @@ function bauteilAusWaermeschutz(b) {
            // Schichten ohne belegte Quelle (λ „ungeprüft“, eigene Eingabe, Luftschicht-Tabelle) → Haken nötig
            ungeprueft: Array.isArray(b.ungeprueft) ? b.ungeprueft.map(String) : [], schichtenGeprueft: false,
            // Schichtaufbau innen → außen (d in cm), nur zur Anzeige
-           schichten: schichtenAus(b.schichten), RT: ok(num(b.RT)) ? num(b.RT) : null, dU: ok(num(b.dU)) ? num(b.dU) : null };
+           schichten: schichtenAus(b.schichten), RT: ok(num(b.RT)) ? num(b.RT) : null, dU: ok(num(b.dU)) ? num(b.dU) : null,
+           // vollständige Eingaben der Wärmeschutz-App (Randbedingungen + Schichten) zum späteren Bearbeiten
+           wsZustand: wsZustandAus(b.zustand) };
+}
+function wsZustandAus(z) {
+  if (!z || typeof z !== 'object' || !z.f || typeof z.f !== 'object' || !Array.isArray(z.s)) return null;
+  const f = {};
+  Object.keys(z.f).forEach(k => { const v = z.f[k]; f[k] = typeof v === 'boolean' ? v : String(v == null ? '' : v); });
+  return { f, s: z.s.filter(Array.isArray).map(r => r.map(v => String(v == null ? '' : v))) };
 }
 function schichtenAus(l) {
   if (!Array.isArray(l)) return [];
