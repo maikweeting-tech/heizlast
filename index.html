@@ -170,6 +170,13 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .aufbau-feld input { flex: 1; }
 .aufbau-knopf { margin-top: 6px; }
 .blatt .aufbau-kurz { font-size: 7.5pt; color: #5b6470; }
+/* Gebäudeschnitt */
+.schnitt-vorschau svg, .schnitt-block svg { width: 100%; height: auto; max-width: 760px; display: block; }
+.schnitt-vorschau { background: #fff; border: 1px solid var(--linie); border-radius: 8px; padding: 6px; }
+.blatt .schnitt-block svg { max-height: 95mm; }
+.gs-tab td { vertical-align: middle; }
+.gs-tab .schicht-pfeile { white-space: nowrap; }
+.gs-tab .schicht-pfeile .btn-icon { width: 28px; font-size: .8rem; color: var(--text); }
 .blatt table.nachweise td { font-size: 7.6pt; vertical-align: top; }
 .blatt table.nachweise th { font-size: 7.4pt; }
 .vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }
@@ -477,6 +484,8 @@ function leeresProjekt() {
     format: 'fh21.heizlast', version: 2,
     projekt: { projekt: '', bauvorhaben: '', bearbeiter: 'Maik Weeting, Klasse FH 21', datum: '', position: '', beschreibung: '', standortId: '', phiWE: '' },
     optionen: { verfahren: '' },
+    // Gebäudeschnitt (nur Skizze): Geschosse von oben nach unten, Dachform
+    gebaeude: { geschosse: [], dach: '' },
     normwerte: {
       standorte: [{ id: neueId('st'), name: '', te: leerNW(), tme: leerNW() }],
       raumarten: [{ id: neueId('ra'), name: '', tint: leerNW(), nmin: leerNW() }],
@@ -847,6 +856,7 @@ const BEGRIFFE = {
   dUWB: { z: 'ΔU_WB', n: 'Wärmebrückenzuschlag', e: 'W/(m²·K)', t: 'Pauschaler Zuschlag auf den U-Wert für Wärmebrücken (Ecken, Anschlüsse, Deckenauflager, Fensterlaibungen). Der Wert hängt davon ab, wie sorgfältig die Anschlüsse geplant sind, und steht in der DIN/TS 12831-1.' },
   Uc: { z: 'U_c', n: 'korrigierter U-Wert', e: 'W/(m²·K)', t: 'U-Wert einschließlich Wärmebrückenzuschlag: U_c = U + ΔU_WB. Mit diesem Wert rechnet die App die Transmission.' },
   Uequiv: { z: 'U_equiv', n: 'äquivalenter U-Wert gegen Erdreich', e: 'W/(m²·K)', t: 'Ersatz-U-Wert für Bauteile gegen Erdreich (Bodenplatte, Kellerwand). Hängt vom U-Wert des Bauteils, vom Maß B′ = A_Geb / (0,5 · P) und von der Tiefe z ab; aus Tabellen, z. B. Laasch Tab. 8.53–8.60. Im Verfahren DIN EN 12831:2003 Pflicht, ohne ΔU_WB.' },
+  schnitt: { z: '', n: 'Gebäudeschnitt', e: '', t: 'Schematischer Schnitt durch das Gebäude mit allen Geschossen, ohne Maßstab und ohne Einfluss auf die Rechnung. An jeder Stelle (Dach, Außenwand, Fenster, Geschossdecke, Kellerdecke, Kelleraußenwand, Bodenplatte) stehen die Bauteile aus dem Katalog, die dort liegen. Die Lage schlägt die App aus Name und Bauteilart vor; im Tab „3 Bauteile“ kannst du sie ändern.' },
   bauteilart: { z: '', n: 'Bauteilart', e: '', t: 'Art des Bauteils (Außenwand, Fenster, Dach …). Dient zur Ordnung im Katalog und auf der Vorzeigeseite; rechnerisch ohne Einfluss.' },
   schichtwerte: { z: 'λ, R', n: 'Schichtwerte geprüft', e: '', t: 'Erscheint, wenn ein Bauteil aus der Wärmeschutz-App Schichten ohne belegte Quelle enthält: λ-Werte, die dort als „ungeprüft“ markiert sind, eigene Eingaben ohne Quelle oder Luftschichten (R aus Tabelle). Erst wenn du diese Werte mit der Tabelle verglichen und den Haken gesetzt hast, rechnet die App mit dem Bauteil.' },
   waermeschutz: { z: 'U', n: 'Tab Wärmeschutz', e: '', t: 'Die komplette Wärmeschutz-App: Schichtaufbau mit λ und d, U-Wert nach DIN EN ISO 6946, Temperaturverlauf, Mindestwärmeschutz, Tauwasser nach Glaser und GModG-Prüfung. „An Heizlast-App übergeben“ legt das Bauteil direkt im Bauteilkatalog ab. Die eigenständige Wärmeschutz-App gibt es weiterhin.' },
@@ -913,6 +923,138 @@ const BEGRIFFE = {
 };
 if (typeof module !== 'undefined') module.exports = { BEGRIFFE };
 
+/* Heizlast-App – Gebäudeschnitt (Skizze, ohne Maßstab).
+   Zeigt die Geschosse (von oben nach unten) und an jeder Stelle die Bauteile aus dem Katalog,
+   die dort liegen. Stellen ohne Bauteil werden rot als „nicht benannt“ markiert. */
+
+// num/ok aus calc.js (im Browser im selben Skript, in Node per require)
+const SN = (typeof module !== 'undefined' && typeof num === 'undefined') ? require('./calc.js') : { num, ok };
+
+// Lage eines Bauteils im Schnitt
+const LAGEN = {
+  dach: 'Dach / oberste Decke',
+  aussenwand: 'Außenwand',
+  fenster: 'Fenster / Außentür',
+  geschossdecke: 'Geschossdecke',
+  kellerdecke: 'Kellerdecke',
+  kelleraussenwand: 'Kelleraußenwand (Erdreich)',
+  bodenplatte: 'Bodenplatte (Erdreich)',
+  keine: 'nicht im Schnitt (z. B. Innenwand)'
+};
+
+// Vorschlag aus Name und Bauteilart, wenn keine Lage gewählt ist
+function lageVorschlag(b) {
+  const n = String(b.name || '').toLowerCase(), a = String(b.art || '').toLowerCase(), t = n + ' ' + a;
+  if (/innenwand|innentür|innentuer/.test(t)) return 'keine';
+  if (/fenster|außentür|aussentür|aussentuer|haustür/.test(t)) return 'fenster';
+  if (/dach|oberste geschossdecke|nicht ausg/.test(t)) return 'dach';
+  if (/bodenplatte/.test(n)) return 'bodenplatte';
+  if (/keller/.test(n) && /wand/.test(n)) return 'kelleraussenwand';
+  if (/kellerdecke/.test(n)) return 'kellerdecke';
+  if (a === 'bodenplatte') return 'bodenplatte';
+  if (a === 'kellerdecke') return 'kellerdecke';
+  if (/erdreich/.test(a) && !/decke/.test(n)) return 'bodenplatte';
+  if (/decke/.test(t)) return 'geschossdecke';
+  if (/wand/.test(t)) return 'aussenwand';
+  return 'keine';
+}
+const lageVon = b => (b.lage && LAGEN[b.lage] ? b.lage : lageVorschlag(b));
+
+function schnittEsc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// Bauteile je Lage: [{ name, uc }]
+function bauteileNachLage(bauteile) {
+  const m = {};
+  Object.keys(LAGEN).forEach(k => { m[k] = []; });
+  (bauteile || []).forEach(b => {
+    const u = SN.num(b.U) + SN.num(b.dUWB);
+    m[lageVon(b)].push({ name: b.name || '(ohne Namen)', uc: SN.ok(u) ? u : null });
+  });
+  return m;
+}
+
+// SVG des Schnitts. G = { geschosse: [{ name, beheizt, keller }] von oben nach unten, dach: '' | 'flach' | 'steil' }
+function schnittSvg(G, bauteile, opt = {}) {
+  const gs = (G && G.geschosse) || [];
+  if (!gs.length) return '';
+  const steil = G.dach === 'steil';
+  const bl = bauteileNachLage(bauteile);
+  const W = 760, xL = 275, xR = 465, h = 62, wand = 7;
+  const yTop = steil ? 78 : 34;
+  const n = gs.length;
+  const nOben = gs.filter(g => !g.keller).length;
+  const yG = yTop + nOben * h;                       // Geländeoberkante
+  const yBot = yTop + n * h;
+  const H = yBot + 46;
+  const y = i => yTop + i * h;
+  const fmtU = u => (u == null ? '' : ' (U_c ' + u.toFixed(2).replace('.', ',') + ')');
+  let s = `<svg class="schnitt" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gebäudeschnitt">
+  <defs><pattern id="erde" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#a08060" stroke-width="1.4"/></pattern></defs>
+  <style>.sn-t{font:11px Arial,sans-serif;fill:#1f2933}.sn-b{font:bold 11px Arial,sans-serif;fill:#1f2933}.sn-g{font:bold 13px Arial,sans-serif;fill:#1f2933}.sn-k{font:10px Arial,sans-serif;fill:#5b6470}.sn-no{font:italic 11px Arial,sans-serif;fill:#C0392B}</style>`;
+  // Erdreich
+  s += `<rect x="${xL - 95}" y="${yG}" width="${xR - xL + 190}" height="${H - yG - 6}" fill="url(#erde)" opacity=".55"/><line x1="${xL - 120}" y1="${yG}" x2="${xR + 120}" y2="${yG}" stroke="#6b5440" stroke-width="2"/>`;
+  // Geschosse
+  gs.forEach((g, i) => {
+    const fill = g.keller ? (g.beheizt ? '#f6dcc8' : '#e3e6ea') : (g.beheizt ? '#fde7d6' : '#eceff2');
+    s += `<rect x="${xL}" y="${y(i)}" width="${xR - xL}" height="${h}" fill="${fill}"/>`;
+    s += `<text x="${(xL + xR) / 2}" y="${y(i) + h / 2 - 2}" text-anchor="middle" class="sn-g">${schnittEsc(g.name || '?')}</text>`;
+    s += `<text x="${(xL + xR) / 2}" y="${y(i) + h / 2 + 14}" text-anchor="middle" class="sn-k">${g.beheizt ? 'beheizt' : 'unbeheizt'}${g.keller ? ', unter Gelände' : ''}</text>`;
+    // Wände
+    const wf = g.keller ? '#7a6a5a' : '#8a5a44';
+    s += `<rect x="${xL - wand}" y="${y(i)}" width="${wand}" height="${h}" fill="${wf}"/><rect x="${xR}" y="${y(i)}" width="${wand}" height="${h}" fill="${wf}"/>`;
+    // Fenster in Geschossen über Gelände
+    if (!g.keller) [xL - wand, xR].forEach(x => { s += `<rect x="${x}" y="${y(i) + 18}" width="${wand}" height="24" fill="#9fd3f0" stroke="#4a8fb8" stroke-width="1"/>`; });
+  });
+  // Decken (Platten)
+  const platte = (yy, farbe) => `<rect x="${xL - wand}" y="${yy - 4}" width="${xR - xL + 2 * wand}" height="8" fill="${farbe}"/>`;
+  for (let i = 0; i <= n; i++) s += platte(y(i), i === 0 ? '#5a6470' : i === n ? '#5a5048' : '#7d8790');
+  if (steil) s += `<polygon points="${xL - wand - 14},${yTop - 3} ${(xL + xR) / 2},${yTop - 64} ${xR + wand + 14},${yTop - 3}" fill="none" stroke="#5a6470" stroke-width="7" stroke-linejoin="round"/>`;
+
+  // Beschriftungen: links und rechts, Überlappung vermeiden
+  const marken = { L: [], R: [] };
+  const marke = (seite, lage, ax, ay, titel) => {
+    const liste = bl[lage] || [];
+    marken[seite].push({ ax, ay, y: ay, titel: titel || LAGEN[lage], zeilen: liste.length ? liste.slice(0, 3).map(b => b.name + fmtU(b.uc)) : null, mehr: Math.max(0, liste.length - 3) });
+  };
+  const ersterOben = gs.findIndex(g => !g.keller);
+  const ersterKeller = gs.findIndex(g => g.keller);
+  marke('R', 'dach', xR + wand, steil ? yTop - 30 : yTop, G.dach === 'flach' ? 'Flachdach' : steil ? 'Steildach' : 'Dach / oberste Decke');
+  if (ersterOben >= 0) {
+    marke('L', 'aussenwand', xL - wand, y(ersterOben) + h / 2 + 12);
+    marke('R', 'fenster', xR + wand, y(ersterOben) + 30);
+  }
+  // Geschossdecke: erste Decke zwischen zwei Geschossen über Gelände (oder zwischen zwei Kellern)
+  const gd = gs.findIndex((g, i) => i > 0 && !!g.keller === !!gs[i - 1].keller);
+  if (gd > 0) marke('R', 'geschossdecke', xR + wand, y(gd));
+  if (ersterKeller > 0) marke('R', 'kellerdecke', xR + wand, y(ersterKeller));
+  if (ersterKeller >= 0) marke('L', 'kelleraussenwand', xL - wand, y(ersterKeller) + h / 2);
+  marke('L', 'bodenplatte', xL, yBot, ersterKeller >= 0 ? 'Bodenplatte Keller (Erdreich)' : 'Bodenplatte (Erdreich)');
+
+  const zeileH = 13;
+  ['L', 'R'].forEach(seite => {
+    const m = marken[seite].sort((a, b) => a.ay - b.ay);
+    let frei = 12;
+    m.forEach(k => {
+      const hoehe = (1 + (k.zeilen ? k.zeilen.length + (k.mehr ? 1 : 0) : 1)) * zeileH;
+      k.y = Math.max(k.ay - hoehe / 2 + 4, frei);
+      frei = k.y + hoehe + 6;
+    });
+    m.forEach(k => {
+      const tx = seite === 'L' ? xL - wand - 30 : xR + wand + 30, anker = seite === 'L' ? 'end' : 'start';
+      const ly = k.y + 4;
+      s += `<polyline points="${k.ax},${k.ay} ${seite === 'L' ? tx + 6 : tx - 6},${ly}" fill="none" stroke="#5b6470" stroke-width="1"/><circle cx="${k.ax}" cy="${k.ay}" r="2.5" fill="#5b6470"/>`;
+      s += `<text x="${seite === 'L' ? tx : tx}" y="${ly}" text-anchor="${anker}" class="sn-b">${schnittEsc(k.titel)}</text>`;
+      if (k.zeilen) k.zeilen.forEach((z, j) => { s += `<text x="${tx}" y="${ly + (j + 1) * zeileH}" text-anchor="${anker}" class="sn-t">${schnittEsc(z)}</text>`; });
+      else s += `<text x="${tx}" y="${ly + zeileH}" text-anchor="${anker}" class="sn-no">nicht benannt</text>`;
+      if (k.mehr) s += `<text x="${tx}" y="${ly + (k.zeilen.length + 1) * zeileH}" text-anchor="${anker}" class="sn-k">+ ${k.mehr} weitere</text>`;
+    });
+  });
+  s += '</svg>';
+  return s;
+}
+
+if (typeof module !== 'undefined') module.exports = { LAGEN, lageVorschlag, lageVon, bauteileNachLage, schnittSvg };
+
 </script>
 <script>
 /* Heizlast-App – Oberfläche. Rechenkern: calc.js. Keine Vorbelegungen (außer Bearbeiter laut Vorgabe). */
@@ -946,6 +1088,7 @@ function ergaenze(z) {
   ['erdreich', 'vmin', 'infiltration'].forEach(k => delete z.optionen[k]);   // alte Einzelvarianten
   z.normwerte = Object.assign(L.normwerte, z.normwerte || {});
   z.bauteile = z.bauteile || []; z.raeume = z.raeume || [];
+  z.gebaeude = Object.assign({ geschosse: [], dach: '' }, z.gebaeude || {});
   if (!z.entwurf) { z.entwurf = leererRaum(); z.entwurfVon = ''; }
   return z;
 }
@@ -1023,6 +1166,7 @@ function rProjekt() {
       <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub> ${info('theta_me')}</td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
       : '<p class="hinweis">Standorte legst du im Tab „4 Normwerte“ an.</p>'}
   </div>
+  ${gebaeudeKarte()}
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
     <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub> ' + info('PhiWE'), 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis ${info('eta_nw')}</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
   </div>
@@ -1087,6 +1231,29 @@ function nachweisText() {
   return `η = ${W(n.Ed / 1000, 2)} / ${W(n.Rd / 1000, 2)} = ${W(n.eta, 3)} ${n.erfuellt ? '≤' : '>'} 1,0 → ${n.erfuellt ? 'erfüllt' : 'NICHT erfüllt'}`;
 }
 
+// Gebäudeschnitt: Geschosse (oben → unten) und Dachform, Vorschau mit den benannten Bauteilen
+function gebaeudeKarte() {
+  const G = S.gebaeude, gs = G.geschosse;
+  const z = gs.map((g, i) => {
+    const b = `gebaeude.geschosse.#${g.id}`;
+    return `<tr><td class="schicht-pfeile"><button class="btn-icon" data-a="gs-hoch" data-id="${g.id}" title="nach oben" ${i ? '' : 'style="visibility:hidden"'}>▲</button><button class="btn-icon" data-a="gs-runter" data-id="${g.id}" title="nach unten" ${i < gs.length - 1 ? '' : 'style="visibility:hidden"'}>▼</button></td>
+      <td>${inp(b + '.name', '', 'n', 'placeholder="z. B. KG, EG, 1.OG, DG"')}</td>
+      <td><label class="haken"><input type="checkbox" data-b="${b}.beheizt" ${g.beheizt ? 'checked' : ''}> beheizt</label></td>
+      <td><label class="haken"><input type="checkbox" data-b="${b}.keller" ${g.keller ? 'checked' : ''}> unter Gelände (Keller)</label></td>
+      <td><button class="btn-icon" data-a="gs-weg" data-id="${g.id}" title="Geschoss entfernen">×</button></td></tr>`;
+  }).join('');
+  return `<div class="karte"><h2>Gebäudeschnitt ${info('schnitt')}</h2>
+    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 der Vorzeigeseite. Die Lage eines Bauteils kannst du im Tab „3 Bauteile“ ändern.</p>
+    ${gs.length ? `<div class="tabwrap"><table class="tab gs-tab">${z}</table></div>` : '<p class="hinweis klein">Noch keine Geschosse.</p>'}
+    <div class="knoepfe" style="margin:8px 0 12px">
+      <button class="btn btn-klein" data-a="gs-oben">+ Geschoss oben</button>
+      <button class="btn btn-klein" data-a="gs-unten">+ Geschoss unten (z. B. Keller)</button>
+      ${S.raeume.some(r => r.geschoss) ? '<button class="btn btn-klein" data-a="gs-raeume">Geschosse aus der Raumliste übernehmen</button>' : ''}
+      <label class="feld" style="margin:0">Dachform ${sel('gebaeude.dach', '', [['', '— wählen —'], ['flach', 'Flachdach'], ['steil', 'Steildach']])}</label>
+    </div>
+    <div class="schnitt-vorschau" data-o="schnitt">${schnittSvg(G, S.bauteile)}</div></div>`;
+}
+
 // ── 2 Wärmeschutz (komplette Wärmeschutz-App, eingebettet) ────────────────
 // Der Rahmen wird nur einmal angelegt und bleibt beim Tabwechsel erhalten.
 function rWaerme() {
@@ -1137,6 +1304,7 @@ function rBauteile() {
           <div class="feld"><span>Quelle U ${info('quelle')}</span> ${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</div>
           <div class="feld"><span>Quelle ΔU<sub>WB</sub> <span class="einh">(optional)</span></span> ${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="z. B. DIN 4108 Bbl. 2, Kategorie B"')}</div>
         </div>
+        <div class="bt-quellen"><div class="feld"><span>Lage im Gebäudeschnitt ${info('schnitt')}</span> ${sel(pb + '.lage', '', [['', 'automatisch: ' + LAGEN[lageVorschlag(b)]]].concat(Object.entries(LAGEN)), false)}</div><div></div></div>
         ${ws && (b.ungeprueft || []).length ? `<div class="klein bt-ungeprueft">Schichten ohne Quelle: ${esc(b.ungeprueft.join(', '))} · <label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}
         ${ws ? aufbauHtml(b) : `<label class="aufbau-feld">Aufbau <span class="einh">(innen → außen, optional)</span> ${inp(pb + '.aufbau', '', 'q', 'placeholder="z. B. 1,5 cm Putz · 17,5 cm KS · 18 cm Mineralwolle · Vormauerschale"')}</label>`}
       </td></tr>`;
@@ -1536,6 +1704,7 @@ function blattHtml() {
   ${unvoll ? `<div class="warn">${unvoll} von ${G.raeume.length} Räumen unvollständig – ohne Ergebnis. Gebäudeheizlast und Nachweis entfallen, bis alle Angaben vorliegen.</div>` : ''}
   <h2><span class="nr">1</span>Kurzbeschreibung, Regelwerk, Randbedingungen</h2>
   <p>${idx(esc(P.beschreibung)) || '<i>Keine Kurzbeschreibung eingetragen.</i>'}</p>
+  ${S.gebaeude.geschosse.length ? `<div class="block schnitt-block"><p style="margin:4px 0 2px"><b>Gebäudeschnitt (schematisch, ohne Maßstab)</b> – rot: Stelle ohne benanntes Bauteil</p>${schnittSvg(S.gebaeude, S.bauteile)}</div>` : ''}
   <p><b>Regelwerk:</b> geltend DIN EN 12831-1:2017-09 (<span class="${normBadge(NORMSTAND[0])[0]}">${normBadge(NORMSTAND[0])[1]}</span>) mit DIN/TS 12831-1:2020-04 (<span class="${normBadge(NORMSTAND[1])[0]}">${normBadge(NORMSTAND[1])[1]}</span>). Gerechnet wird raumweise nach dem unten genannten Rechenweg. Standort: ${st ? esc(st.name) : '–'}.</p>
   <p><b>Rechenansatz:</b></p><ul>${varTxt}</ul>
   <div class="block"><table><thead><tr><th>Randbedingung</th><th class="z">Wert</th><th>Einheit</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${rbHtml || '<tr><td colspan="5">–</td></tr>'}</tbody></table></div>
@@ -1610,7 +1779,10 @@ function nachEingabe(el) {
   markiere();
   if (tab === 'bauteile') S.bauteile.forEach(b => { const x = document.querySelector(`[data-o="uc:${b.id}"]`); if (x) x.innerHTML = ucText(b); });
   if (tab === 'normwerte' && el) { const b = el.dataset.b.replace(/\.(wert|quelle|geprueft)$/, ''); const x = document.querySelector(`[data-o="nws:${b}"]`); if (x) x.innerHTML = badge(hole(b)); }
-  if (tab === 'projekt') { const x = document.querySelector('[data-o="nachweis"]'); if (x) x.textContent = nachweisText(); }
+  if (tab === 'projekt') {
+    const x = document.querySelector('[data-o="nachweis"]'); if (x) x.textContent = nachweisText();
+    const sk = document.querySelector('[data-o="schnitt"]'); if (sk) sk.innerHTML = schnittSvg(S.gebaeude, S.bauteile);
+  }
   $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length;
 }
 
@@ -1664,6 +1836,18 @@ const AKTION = {
   'auf'(d) { offen.has(d.id) ? offen.delete(d.id) : offen.add(d.id); },
   'ws-import'() { wsDialog(); return false; },
   'zu-waerme'() { zeigeTab('waerme'); return false; },
+  // Gebäudeschnitt
+  'gs-oben'() { S.gebaeude.geschosse.unshift({ id: neueId('gs'), name: '', beheizt: true, keller: false }); },
+  'gs-unten'() { S.gebaeude.geschosse.push({ id: neueId('gs'), name: '', beheizt: false, keller: true }); },
+  'gs-weg'(d) { S.gebaeude.geschosse = S.gebaeude.geschosse.filter(g => g.id !== d.id); },
+  'gs-hoch'(d) { const a = S.gebaeude.geschosse, i = a.findIndex(g => g.id === d.id); if (i > 0) [a[i - 1], a[i]] = [a[i], a[i - 1]]; },
+  'gs-runter'(d) { const a = S.gebaeude.geschosse, i = a.findIndex(g => g.id === d.id); if (i >= 0 && i < a.length - 1) [a[i + 1], a[i]] = [a[i], a[i + 1]]; },
+  'gs-raeume'() {
+    const da = new Set(S.gebaeude.geschosse.map(g => g.name.trim().toLowerCase()));
+    [...new Set(S.raeume.map(r => (r.geschoss || '').trim()).filter(Boolean))].forEach(n => {
+      if (!da.has(n.toLowerCase())) S.gebaeude.geschosse.push({ id: neueId('gs'), name: n, beheizt: true, keller: /^(kg|ug|keller)/i.test(n) });
+    });
+  },
   'ws-bearbeiten'(d) {
     const b = S.bauteile.find(x => x.id === d.id);
     if (!b || !b.wsZustand) return false;

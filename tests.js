@@ -262,6 +262,21 @@ pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
   pruefe('L × H: fehlende Höhe → unvollständig', C.rechneRaum(r, P).fehlt.some(x => x.pfad.endsWith('.fH')), true);
 }
 
+// ── Gebäudeschnitt ─────────────────────────────────────────────────────────
+{
+  const SN = require('./src/schnitt.js');
+  const bt = (name, art) => ({ name, art, U: '0,2', dUWB: '0,03' });
+  pruefe('Schnitt: Lage-Vorschläge', [bt('Flachdach mit Begrünung', 'Außenwand'), bt('Außenwand 17,5 KS', 'Außenwand'), bt('Bodenplatte 30/12', 'Kellerdecke / gegen Erdreich'),
+    bt('Kelleraußenwand', 'Außenwand'), bt('Betondecke mit Heizestrich', 'Decke gegen Außenluft (Wärmestrom ↓)'), bt('Fenster Kita', 'Fenster'), bt('IW', 'Innenwand')].map(SN.lageVorschlag).join(),
+    'dach,aussenwand,bodenplatte,kelleraussenwand,geschossdecke,fenster,keine');
+  pruefe('Schnitt: gewählte Lage gilt vor Vorschlag', SN.lageVon({ ...bt('Betondecke', 'Decke'), lage: 'kellerdecke' }), 'kellerdecke');
+  const G = { dach: 'flach', geschosse: [{ name: '1.OG', beheizt: true }, { name: 'EG', beheizt: true }, { name: 'KG', beheizt: false, keller: true }] };
+  const svg = SN.schnittSvg(G, [bt('Flachdach', 'Dach'), bt('AW', 'Außenwand')]);
+  pruefe('Schnitt: Geschosse und Bauteile im SVG', ['1.OG', 'EG', 'KG', 'Flachdach', 'AW (U_c 0,23)', 'Kellerdecke', 'Bodenplatte Keller'].every(t => svg.includes(t)), true);
+  pruefe('Schnitt: fehlende Bauteile rot markiert', (svg.match(/nicht benannt/g) || []).length, 5);
+  pruefe('Schnitt: ohne Geschosse keine Skizze', SN.schnittSvg({ geschosse: [] }, []), '');
+}
+
 // ── Testfall 4: Einheitenkontrolle ─────────────────────────────────────────
 C.einheitenPruefung().forEach(s => pruefe('Einheit: ' + s.schritt + ' → ' + s.soll, s.ok, true));
 

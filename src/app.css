@@ -160,6 +160,13 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .aufbau-feld input { flex: 1; }
 .aufbau-knopf { margin-top: 6px; }
 .blatt .aufbau-kurz { font-size: 7.5pt; color: #5b6470; }
+/* Gebäudeschnitt */
+.schnitt-vorschau svg, .schnitt-block svg { width: 100%; height: auto; max-width: 760px; display: block; }
+.schnitt-vorschau { background: #fff; border: 1px solid var(--linie); border-radius: 8px; padding: 6px; }
+.blatt .schnitt-block svg { max-height: 95mm; }
+.gs-tab td { vertical-align: middle; }
+.gs-tab .schicht-pfeile { white-space: nowrap; }
+.gs-tab .schicht-pfeile .btn-icon { width: 28px; font-size: .8rem; color: var(--text); }
 .blatt table.nachweise td { font-size: 7.6pt; vertical-align: top; }
 .blatt table.nachweise th { font-size: 7.4pt; }
 .vz-raeume { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 6px; }

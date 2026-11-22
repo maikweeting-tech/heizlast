@@ -29,6 +29,7 @@ function ergaenze(z) {
   ['erdreich', 'vmin', 'infiltration'].forEach(k => delete z.optionen[k]);   // alte Einzelvarianten
   z.normwerte = Object.assign(L.normwerte, z.normwerte || {});
   z.bauteile = z.bauteile || []; z.raeume = z.raeume || [];
+  z.gebaeude = Object.assign({ geschosse: [], dach: '' }, z.gebaeude || {});
   if (!z.entwurf) { z.entwurf = leererRaum(); z.entwurfVon = ''; }
   return z;
 }
@@ -106,6 +107,7 @@ function rProjekt() {
       <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub> ${info('theta_me')}</td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
       : '<p class="hinweis">Standorte legst du im Tab „4 Normwerte“ an.</p>'}
   </div>
+  ${gebaeudeKarte()}
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
     <div class="reihe">${feld('Leistung des Wärmeerzeugers Φ<sub>WE</sub> ' + info('PhiWE'), 'projekt.phiWE', 'projekt.phiWE', 'kW', 'z')}<div><span class="hinweis klein">Nachweis ${info('eta_nw')}</span><span class="ausgabe" data-o="nachweis">${nachweisText()}</span></div></div>
   </div>
@@ -170,6 +172,29 @@ function nachweisText() {
   return `η = ${W(n.Ed / 1000, 2)} / ${W(n.Rd / 1000, 2)} = ${W(n.eta, 3)} ${n.erfuellt ? '≤' : '>'} 1,0 → ${n.erfuellt ? 'erfüllt' : 'NICHT erfüllt'}`;
 }
 
+// Gebäudeschnitt: Geschosse (oben → unten) und Dachform, Vorschau mit den benannten Bauteilen
+function gebaeudeKarte() {
+  const G = S.gebaeude, gs = G.geschosse;
+  const z = gs.map((g, i) => {
+    const b = `gebaeude.geschosse.#${g.id}`;
+    return `<tr><td class="schicht-pfeile"><button class="btn-icon" data-a="gs-hoch" data-id="${g.id}" title="nach oben" ${i ? '' : 'style="visibility:hidden"'}>▲</button><button class="btn-icon" data-a="gs-runter" data-id="${g.id}" title="nach unten" ${i < gs.length - 1 ? '' : 'style="visibility:hidden"'}>▼</button></td>
+      <td>${inp(b + '.name', '', 'n', 'placeholder="z. B. KG, EG, 1.OG, DG"')}</td>
+      <td><label class="haken"><input type="checkbox" data-b="${b}.beheizt" ${g.beheizt ? 'checked' : ''}> beheizt</label></td>
+      <td><label class="haken"><input type="checkbox" data-b="${b}.keller" ${g.keller ? 'checked' : ''}> unter Gelände (Keller)</label></td>
+      <td><button class="btn-icon" data-a="gs-weg" data-id="${g.id}" title="Geschoss entfernen">×</button></td></tr>`;
+  }).join('');
+  return `<div class="karte"><h2>Gebäudeschnitt ${info('schnitt')}</h2>
+    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 der Vorzeigeseite. Die Lage eines Bauteils kannst du im Tab „3 Bauteile“ ändern.</p>
+    ${gs.length ? `<div class="tabwrap"><table class="tab gs-tab">${z}</table></div>` : '<p class="hinweis klein">Noch keine Geschosse.</p>'}
+    <div class="knoepfe" style="margin:8px 0 12px">
+      <button class="btn btn-klein" data-a="gs-oben">+ Geschoss oben</button>
+      <button class="btn btn-klein" data-a="gs-unten">+ Geschoss unten (z. B. Keller)</button>
+      ${S.raeume.some(r => r.geschoss) ? '<button class="btn btn-klein" data-a="gs-raeume">Geschosse aus der Raumliste übernehmen</button>' : ''}
+      <label class="feld" style="margin:0">Dachform ${sel('gebaeude.dach', '', [['', '— wählen —'], ['flach', 'Flachdach'], ['steil', 'Steildach']])}</label>
+    </div>
+    <div class="schnitt-vorschau" data-o="schnitt">${schnittSvg(G, S.bauteile)}</div></div>`;
+}
+
 // ── 2 Wärmeschutz (komplette Wärmeschutz-App, eingebettet) ────────────────
 // Der Rahmen wird nur einmal angelegt und bleibt beim Tabwechsel erhalten.
 function rWaerme() {
@@ -220,6 +245,7 @@ function rBauteile() {
           <div class="feld"><span>Quelle U ${info('quelle')}</span> ${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</div>
           <div class="feld"><span>Quelle ΔU<sub>WB</sub> <span class="einh">(optional)</span></span> ${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="z. B. DIN 4108 Bbl. 2, Kategorie B"')}</div>
         </div>
+        <div class="bt-quellen"><div class="feld"><span>Lage im Gebäudeschnitt ${info('schnitt')}</span> ${sel(pb + '.lage', '', [['', 'automatisch: ' + LAGEN[lageVorschlag(b)]]].concat(Object.entries(LAGEN)), false)}</div><div></div></div>
         ${ws && (b.ungeprueft || []).length ? `<div class="klein bt-ungeprueft">Schichten ohne Quelle: ${esc(b.ungeprueft.join(', '))} · <label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}
         ${ws ? aufbauHtml(b) : `<label class="aufbau-feld">Aufbau <span class="einh">(innen → außen, optional)</span> ${inp(pb + '.aufbau', '', 'q', 'placeholder="z. B. 1,5 cm Putz · 17,5 cm KS · 18 cm Mineralwolle · Vormauerschale"')}</label>`}
       </td></tr>`;
@@ -619,6 +645,7 @@ function blattHtml() {
   ${unvoll ? `<div class="warn">${unvoll} von ${G.raeume.length} Räumen unvollständig – ohne Ergebnis. Gebäudeheizlast und Nachweis entfallen, bis alle Angaben vorliegen.</div>` : ''}
   <h2><span class="nr">1</span>Kurzbeschreibung, Regelwerk, Randbedingungen</h2>
   <p>${idx(esc(P.beschreibung)) || '<i>Keine Kurzbeschreibung eingetragen.</i>'}</p>
+  ${S.gebaeude.geschosse.length ? `<div class="block schnitt-block"><p style="margin:4px 0 2px"><b>Gebäudeschnitt (schematisch, ohne Maßstab)</b> – rot: Stelle ohne benanntes Bauteil</p>${schnittSvg(S.gebaeude, S.bauteile)}</div>` : ''}
   <p><b>Regelwerk:</b> geltend DIN EN 12831-1:2017-09 (<span class="${normBadge(NORMSTAND[0])[0]}">${normBadge(NORMSTAND[0])[1]}</span>) mit DIN/TS 12831-1:2020-04 (<span class="${normBadge(NORMSTAND[1])[0]}">${normBadge(NORMSTAND[1])[1]}</span>). Gerechnet wird raumweise nach dem unten genannten Rechenweg. Standort: ${st ? esc(st.name) : '–'}.</p>
   <p><b>Rechenansatz:</b></p><ul>${varTxt}</ul>
   <div class="block"><table><thead><tr><th>Randbedingung</th><th class="z">Wert</th><th>Einheit</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${rbHtml || '<tr><td colspan="5">–</td></tr>'}</tbody></table></div>
@@ -693,7 +720,10 @@ function nachEingabe(el) {
   markiere();
   if (tab === 'bauteile') S.bauteile.forEach(b => { const x = document.querySelector(`[data-o="uc:${b.id}"]`); if (x) x.innerHTML = ucText(b); });
   if (tab === 'normwerte' && el) { const b = el.dataset.b.replace(/\.(wert|quelle|geprueft)$/, ''); const x = document.querySelector(`[data-o="nws:${b}"]`); if (x) x.innerHTML = badge(hole(b)); }
-  if (tab === 'projekt') { const x = document.querySelector('[data-o="nachweis"]'); if (x) x.textContent = nachweisText(); }
+  if (tab === 'projekt') {
+    const x = document.querySelector('[data-o="nachweis"]'); if (x) x.textContent = nachweisText();
+    const sk = document.querySelector('[data-o="schnitt"]'); if (sk) sk.innerHTML = schnittSvg(S.gebaeude, S.bauteile);
+  }
   $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length;
 }
 
@@ -747,6 +777,18 @@ const AKTION = {
   'auf'(d) { offen.has(d.id) ? offen.delete(d.id) : offen.add(d.id); },
   'ws-import'() { wsDialog(); return false; },
   'zu-waerme'() { zeigeTab('waerme'); return false; },
+  // Gebäudeschnitt
+  'gs-oben'() { S.gebaeude.geschosse.unshift({ id: neueId('gs'), name: '', beheizt: true, keller: false }); },
+  'gs-unten'() { S.gebaeude.geschosse.push({ id: neueId('gs'), name: '', beheizt: false, keller: true }); },
+  'gs-weg'(d) { S.gebaeude.geschosse = S.gebaeude.geschosse.filter(g => g.id !== d.id); },
+  'gs-hoch'(d) { const a = S.gebaeude.geschosse, i = a.findIndex(g => g.id === d.id); if (i > 0) [a[i - 1], a[i]] = [a[i], a[i - 1]]; },
+  'gs-runter'(d) { const a = S.gebaeude.geschosse, i = a.findIndex(g => g.id === d.id); if (i >= 0 && i < a.length - 1) [a[i + 1], a[i]] = [a[i], a[i + 1]]; },
+  'gs-raeume'() {
+    const da = new Set(S.gebaeude.geschosse.map(g => g.name.trim().toLowerCase()));
+    [...new Set(S.raeume.map(r => (r.geschoss || '').trim()).filter(Boolean))].forEach(n => {
+      if (!da.has(n.toLowerCase())) S.gebaeude.geschosse.push({ id: neueId('gs'), name: n, beheizt: true, keller: /^(kg|ug|keller)/i.test(n) });
+    });
+  },
   'ws-bearbeiten'(d) {
     const b = S.bauteile.find(x => x.id === d.id);
     if (!b || !b.wsZustand) return false;

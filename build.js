@@ -22,7 +22,7 @@ const teile = {
   '/*CSS*/': lies('src/app.css'),
   '/*VENDOR*/': js(lies('vendor/xlsx.mini.min.js')) + '\n' + js(lies('vendor/html2canvas.min.js')),
   '/*WS*/': wsJs,
-  '/*CALC*/': js(lies('src/calc.js')) + '\n' + js(lies('src/begriffe.js')),
+  '/*CALC*/': js(lies('src/calc.js')) + '\n' + js(lies('src/begriffe.js')) + '\n' + js(lies('src/schnitt.js').replace(/^'use strict';$/m, '')),
   '/*APP*/': js(lies('src/app.js'))
 };
 for (const [k, v] of Object.entries(teile)) { if (!html.includes(k)) throw new Error('Marke fehlt: ' + k); html = html.replace(k, () => v); }

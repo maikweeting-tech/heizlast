@@ -166,6 +166,8 @@ function leeresProjekt() {
     format: 'fh21.heizlast', version: 2,
     projekt: { projekt: '', bauvorhaben: '', bearbeiter: 'Maik Weeting, Klasse FH 21', datum: '', position: '', beschreibung: '', standortId: '', phiWE: '' },
     optionen: { verfahren: '' },
+    // Gebäudeschnitt (nur Skizze): Geschosse von oben nach unten, Dachform
+    gebaeude: { geschosse: [], dach: '' },
     normwerte: {
       standorte: [{ id: neueId('st'), name: '', te: leerNW(), tme: leerNW() }],
       raumarten: [{ id: neueId('ra'), name: '', tint: leerNW(), nmin: leerNW() }],
