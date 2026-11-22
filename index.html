@@ -1676,10 +1676,13 @@ function exportXlsx() {
   // Räume und Hüllflächen
   const hr = [[kopfz[0]], [kopfz[1]], [], ['Raum-Nr.', 'Bauteil', 'Ausrichtung', 'angrenzend an', 'A brutto in m²', 'Abzug in m²', 'A netto in m²', 'U_k (U_c / U / U_equiv) in W/(m²·K)', 'θ_u / θ_j in °C bzw. b_u', 'f in –', 'Δθ in K', 'Φ_T in W']];
   const rr = [[kopfz[0]], [kopfz[1]], [], ['Nr.', 'Raum', 'Geschoss', 'Raumart', 'L in m', 'B in m', 'A in m²', 'h_i in m', 'V in m³', 'θ_int in °C', 'Δθ in K', 'Φ_T in W', 'V̇_su in m³/h', 'η_WRG', 'θ_su in °C', 'n_50 in 1/h', 'e', 'ε', 'V̇_inf in m³/h', 'V̇_min in m³/h', 'V̇_therm bzw. V̇_inf in m³/h', 'Φ_V in W', 'Φ_RH in W', 'Φ_HL in W', 'φ in W/m²', 'Status', 'V̇_ex in m³/h', 'f_RH in W/m²']];
-  if (S.optionen.verfahren === 'dints2020') {
-    // Lüftungsspalten beim Verfahren DIN/TS anders belegt (Werte ohne Formel)
+  const tsX = S.optionen.verfahren === 'dints2020';
+  if (tsX) {
+    // Lüftungsspalten P–V beim Verfahren DIN/TS anders belegt, dazu AC–AH
     const k = rr[3];
-    k[15] = '–'; k[16] = '–'; k[17] = '–'; k[18] = '–'; k[19] = 'q_V,min = n_min · V in m³/h'; k[20] = 'q_V,env/min in m³/h'; k[21] = 'Φ_V = Φ_V,env + Φ_V,su + Φ_V,tr in W';
+    k.splice(15, 7, 'A_env (außen + Erdreich) in m²', 'q_V,env = f_env · q_env,50 · A_env in m³/h', 'q_V,techn = max(V̇_su ; V̇_ex) in m³/h', 'q_V,min = n_min · V in m³/h',
+      'q_V,min − q_V,techn in m³/h', 'q_V,env/min = max(q_V,env ; q_V,min − q_V,techn) in m³/h', 'Φ_V = Φ_V,env + Φ_V,su + Φ_V,tr in W');
+    k.push('V̇_tr in m³/h', 'θ_tr in °C', 'Φ_V,env = ρc_p · q_V,env/min · Δθ in W', 'Φ_V,su = ρc_p · V̇_su · (θ_int − θ_su) in W', 'Φ_V,tr = ρc_p · V̇_tr · (θ_int − θ_tr) in W', 'Φ_T,e (ohne beheizte Nachbarräume) in W');
   }
   const R0 = rr.length + 1;
   G.raeume.forEach((R, i) => {
@@ -1706,8 +1709,14 @@ function exportXlsx() {
       n(r.lueftung.Vsu), eta ? n(r.lueftung.eta) : '',
       v ? (w.Vsu > 0 ? (eta ? { f: `${NR.te}+N${z}*(J${z}-${NR.te})`, v: w.tsu } : n(r.lueftung.thetaSu)) : '') : '',
       ...(ts
-        // DIN/TS: Werte ohne Formel (Leckage über die Hüllfläche, siehe Rechenweg); Spalte U = q_V,env/min
-        ? ['', '', '', '', v ? w.Vmin : '', v ? w.qenvmin : '', v ? R.phiV : '']
+        // DIN/TS: P A_env, Q q_V,env, R q_V,techn, S q_V,min, T S−R, U q_V,env/min, V Φ_V (= AE + AF + AG)
+        ? (() => {
+          const hb = (krit) => h1 >= h0 ? `SUMIF(Hüllflächen!D${h0}:D${h1},"${krit}",Hüllflächen!G${h0}:G${h1})` : '0';
+          const nminF = w.nminEigen ? `${n(r.lueftung.nminRaum)}*I${z}` : `${NR['nmin' + ra]}*I${z}`;
+          return v ? [{ f: `${hb(ANGRENZUNG.aussen)}+${hb(ANGRENZUNG.erdreich)}`, v: w.Aenv }, { f: `${NR.fenv}*${NR.qenv50}*P${z}`, v: w.qenv },
+            { f: `MAX(M${z},AA${z})`, v: w.qtechn }, { f: nminF, v: w.Vmin }, { f: `S${z}-R${z}`, v: w.Vmin - w.qtechn },
+            { f: `MAX(Q${z},T${z})`, v: w.qenvmin }, { f: `AE${z}+AF${z}+AG${z}`, v: R.phiV }] : ['', '', '', '', '', '', ''];
+        })()
         : [n(r.lueftung.n50), v ? { f: NR['e' + r.lueftung.eId], v: w.e } : '', v ? { f: NR['eps' + r.lueftung.epsId], v: w.eps } : '',
       v ? { f: `2*I${z}*P${z}*Q${z}*R${z}`, v: w.Vinf } : '',
       v && din ? { f: `${NR['nmin' + ra]}*I${z}`, v: w.Vmin } : '',
@@ -1715,22 +1724,30 @@ function exportXlsx() {
       v ? { f: din ? `${NR.rhocp}*U${z}*K${z}` : w.Vsu > 0 ? `${NR.rhocp}*(U${z}*K${z}+M${z}*(J${z}-O${z}))` : `${NR.rhocp}*U${z}*K${z}`, v: R.phiV } : '']),
       v ? (rhm === 'fRH' ? { f: `G${z}*AB${z}`, v: R.phiRH } : rhm === 'direkt' ? n(r.phiRH) : 0) : '',
       v ? { f: `L${z}+V${z}+W${z}`, v: R.phiHL } : '', v ? { f: `X${z}/G${z}`, v: R.phiSpez } : '', v ? 'vollständig' : 'unvollständig',
-      n(r.lueftung.Vex), rhm === 'fRH' ? n(r.fRH) : '']);
+      n(r.lueftung.Vex), rhm === 'fRH' ? n(r.fRH) : '',
+      ...(ts ? [n(r.lueftung.Vtr), w.Vtr > 0 ? n(r.lueftung.thetaTr) : '',
+        v ? { f: `${NR.rhocp}*U${z}*K${z}`, v: R.PhiVenv } : '',
+        v ? { f: w.Vsu > 0 ? `${NR.rhocp}*M${z}*(J${z}-O${z})` : `${NR.rhocp}*M${z}`, v: R.PhiVsu } : '',
+        v ? { f: w.Vtr > 0 ? `${NR.rhocp}*AC${z}*(J${z}-AD${z})` : `${NR.rhocp}*AC${z}`, v: R.PhiVtr } : '',
+        v ? { f: h1 >= h0 ? `L${z}-SUMIF(Hüllflächen!D${h0}:D${h1},"${ANGRENZUNG.beheizt}",Hüllflächen!L${h0}:L${h1})` : '0', v: R.phiTe } : ''] : [])]);
   });
   const zs = rr.length + 1, ze = zs - 1, s = G.summe;
   if (S.raeume.length) {
     rr.push(['', 'Summe', '', '', '', '', { f: `SUM(G${R0}:G${ze})`, v: s ? s.A : undefined }, '', { f: `SUM(I${R0}:I${ze})`, v: s ? s.V : undefined }, '', '',
       s ? { f: `SUM(L${R0}:L${ze})`, v: s.phiT } : '', '', '', '', '', '', '', '', '', '', s ? { f: `SUM(V${R0}:V${ze})`, v: s.phiV } : '', s ? { f: `SUM(W${R0}:W${ze})`, v: s.phiRH } : '',
-      s ? { f: `SUM(X${R0}:X${ze})`, v: s.phiHL } : '', s ? { f: `X${zs}/G${zs}`, v: s.phiSpez } : '', s ? '' : 'Räume unvollständig – keine Summe']);
+      s ? { f: `SUM(X${R0}:X${ze})`, v: s.phiHL } : '', s ? { f: `X${zs}/G${zs}`, v: s.phiSpez } : '', s ? '' : 'Räume unvollständig – keine Summe',
+      ...(tsX && G.geb ? ['', '', '', '', { f: `SUM(AE${R0}:AE${ze})`, v: G.geb.PhiVenv }, { f: `SUM(AF${R0}:AF${ze})`, v: G.geb.PhiVsu },
+        { f: `SUM(AG${R0}:AG${ze})`, v: G.geb.PhiVtr }, { f: `SUM(AH${R0}:AH${ze})`, v: G.geb.phiTe }] : [])]);
     rr.push([]);
-    if (G.geb && G.geb.ts) rr.push(['', 'Norm-Gebäudeheizlast Φ_HL,Geb in kW = (Σ Φ_T,e + f_Geb · Σ Φ_V,env/min + Σ Φ_V,su + Σ Φ_V,tr + Σ Φ_RH) / 1000', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', G.geb.phiHL / 1000]);
+    if (G.geb && G.geb.ts) rr.push(['', 'Norm-Gebäudeheizlast Φ_HL,Geb in kW = (Σ Φ_T,e + f_Geb · Σ Φ_V,env/min + Σ Φ_V,su + Σ Φ_V,tr + Σ Φ_RH) / 1000', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '',
+      { f: `(AH${zs}+${NR.fGeb}*AE${zs}+AF${zs}+AG${zs}+W${zs})/1000`, v: G.geb.phiHL / 1000 }]);
     else rr.push(['', 'Gebäudeheizlast Σ Φ_HL in kW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s ? { f: `X${zs}/1000`, v: s.phiHL / 1000 } : '']);
     const zw = rr.length + 1;
     rr.push(['', 'Leistung Wärmeerzeuger Φ_WE in kW', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', n(S.projekt.phiWE)]);
-    rr.push(['', 'Nachweis η = Σ Φ_HL / Φ_WE ≤ 1,0', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s && G.nachweis ? { f: `X${zw - 1}/X${zw}`, v: G.nachweis.eta } : '',
+    rr.push(['', tsX ? 'Nachweis η = Φ_HL,Geb / Φ_WE ≤ 1,0' : 'Nachweis η = Σ Φ_HL / Φ_WE ≤ 1,0', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', s && G.nachweis ? { f: `X${zw - 1}/X${zw}`, v: G.nachweis.eta } : '',
       s && G.nachweis ? { f: `IF(X${zw + 1}<=1,"ja","nein")`, v: G.nachweis.erfuellt ? 'ja' : 'nein' } : '']);
   }
-  XLSX.utils.book_append_sheet(wb, blatt(rr, [8, 24, 9, 16, 8, 8, 9, 8, 9, 9, 8, 10, 10, 7, 9, 8, 7, 7, 10, 10, 12, 10, 9, 10, 9, 14, 10, 10]), 'Räume');
+  XLSX.utils.book_append_sheet(wb, blatt(rr, [8, 24, 9, 16, 8, 8, 9, 8, 9, 9, 8, 10, 10, 7, 9, 8, 7, 7, 10, 10, 12, 10, 9, 10, 9, 14, 10, 10].concat(tsX ? [10, 9, 12, 12, 12, 12] : [])), 'Räume');
   XLSX.utils.book_append_sheet(wb, blatt(hr, [9, 24, 11, 22, 11, 10, 11, 16, 14, 9, 9, 11]), 'Hüllflächen');
   XLSX.utils.book_append_sheet(wb, blatt(br, [26, 16, 13, 15, 14, 50]), 'Bauteile');
   XLSX.utils.book_append_sheet(wb, blatt(nr, [44, 9, 10, 11, 50, 8]), 'Normwerte');
