@@ -239,6 +239,7 @@ function rBauteile() {
 // Schichtaufbau eines Bauteils aus der Wärmeschutz-App (innen → außen)
 function aufbauHtml(b) {
   const sch = b.schichten || [];
+  if (!sch.length && (b.art === 'Fenster' || b.art === 'Außentür')) return '<span class="klein hinweis">Kein Schichtaufbau: U_w bzw. U_D aus der genannten Quelle. Ändern: im Tab „2 Wärmeschutz“ unter „Fenster oder Außentür übergeben“ mit demselben Namen neu übergeben.</span>';
   const knopf = b.wsZustand
     ? `<button class="btn btn-klein no-print" data-a="ws-bearbeiten" data-id="${b.id}" title="Aufbau mit allen Randbedingungen in den Tab „2 Wärmeschutz“ laden">Im Wärmeschutz bearbeiten</button>`
     : '<span class="klein hinweis no-print">Bearbeiten nicht möglich (Eingaben nicht gespeichert) – im Tab „2 Wärmeschutz“ neu eingeben und unter demselben Namen übergeben.</span>';
