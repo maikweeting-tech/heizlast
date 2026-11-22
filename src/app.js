@@ -206,17 +206,23 @@ function rBauteile() {
     const ws = b.herkunft === 'waermeschutz';
     const arten = BAUTEILARTEN.includes(b.art) || !b.art ? BAUTEILARTEN : [b.art].concat(BAUTEILARTEN);
     const pb = `bauteile.#${b.id}`, pf = `bt.${b.id}`;
-    return `<tr>
-      <td>${inp(pb + '.name', '', 'n')}</td>
-      <td>${sel(pb + '.art', '', [['', '—']].concat(arten.map(a => [a, a])), false)}</td>
-      <td>${ws ? `<input type="text" class="z" value="${esc(b.U)}" readonly title="aus Wärmeschutz-App">` : inp(pb + '.U', pf + '.U')}</td>
-      <td>${inp(pb + '.dUWB', pf + '.dUWB')}</td>
-      <td class="zahl" data-o="uc:${b.id}">${ucText(b)}</td>
-      <td>${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</td>
-      <td>${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="Quelle ΔU_WB (optional)"')}</td>
-      <td>${ws ? '<span class="status ok">Wärmeschutz-App</span>' : '<span class="status pr">manuell</span>'}${ws && (b.ungeprueft || []).length ? `<div class="klein" style="margin-top:4px;white-space:normal;min-width:180px">ohne Quelle: ${esc(b.ungeprueft.join(', '))}<br><label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}</td>
+    // Zeile 1: Kennwerte; Zeile 2: Quellen, Schichtprüfung und Aufbau (damit die Tabelle ohne Querscrollen passt)
+    return `<tr class="bt-kopf">
+      <td class="bt-name">${inp(pb + '.name', '', 'n')}</td>
+      <td data-l="Bauteilart">${sel(pb + '.art', '', [['', '—']].concat(arten.map(a => [a, a])), false)}</td>
+      <td data-l="U">${ws ? `<input type="text" class="z" value="${esc(b.U)}" readonly title="aus Wärmeschutz-App">` : inp(pb + '.U', pf + '.U')}</td>
+      <td data-l="ΔU_WB">${inp(pb + '.dUWB', pf + '.dUWB')}</td>
+      <td class="zahl" data-l="U_c" data-o="uc:${b.id}">${ucText(b)}</td>
+      <td data-l="Herkunft">${ws ? '<span class="status ok">Wärmeschutz-App</span>' : '<span class="status pr">manuell</span>'}</td>
       <td class="no-print"><button class="btn-icon" data-a="bt-weg" data-id="${b.id}" title="Bauteil löschen">×</button></td></tr>
-      <tr class="aufbau-zeile"><td colspan="9">${ws ? aufbauHtml(b) : `<label class="aufbau-feld">Aufbau <span class="einh">(innen → außen, optional)</span> ${inp(pb + '.aufbau', '', 'q', 'placeholder="z. B. 1,5 cm Putz · 17,5 cm KS · 18 cm Mineralwolle · Vormauerschale"')}</label>`}</td></tr>`;
+      <tr class="bt-unter"><td colspan="7">
+        <div class="bt-quellen">
+          <div class="feld"><span>Quelle U ${info('quelle')}</span> ${ws ? `<span class="klein">${esc(b.quelle)}</span>` : inp(pb + '.quelle', pf + '.quelle', 'q', 'placeholder="Quelle des U-Werts"')}</div>
+          <div class="feld"><span>Quelle ΔU<sub>WB</sub> <span class="einh">(optional)</span></span> ${inp(pb + '.dUWBQuelle', '', 'q', 'placeholder="z. B. DIN 4108 Bbl. 2, Kategorie B"')}</div>
+        </div>
+        ${ws && (b.ungeprueft || []).length ? `<div class="klein bt-ungeprueft">Schichten ohne Quelle: ${esc(b.ungeprueft.join(', '))} · <label class="haken" data-pf="${pf}.schichtenGeprueft"><input type="checkbox" data-b="${pb}.schichtenGeprueft" ${b.schichtenGeprueft ? 'checked' : ''}> Schichtwerte geprüft</label> ${info('schichtwerte')}</div>` : ''}
+        ${ws ? aufbauHtml(b) : `<label class="aufbau-feld">Aufbau <span class="einh">(innen → außen, optional)</span> ${inp(pb + '.aufbau', '', 'q', 'placeholder="z. B. 1,5 cm Putz · 17,5 cm KS · 18 cm Mineralwolle · Vormauerschale"')}</label>`}
+      </td></tr>`;
   }).join('');
   return `<div class="karte"><h2>Bauteilkatalog</h2>
     <p class="hinweis">U-Werte kommen aus der Wärmeschutz-App (Name als Quelle) oder werden von Hand mit Quelle eingetragen. ΔU<sub>WB</sub> ist immer eine Eingabe; U<sub>c</sub> = U + ΔU<sub>WB</sub> rechnet die App.</p>
@@ -226,7 +232,7 @@ function rBauteile() {
       <button class="btn btn-klein" data-a="json-import">JSON-Datei importieren</button>
       <button class="btn btn-klein" data-a="bt-neu">+ Bauteil manuell</button>
     </div>
-    ${S.bauteile.length ? `<div class="tabwrap"><table class="tab"><tr><th>Name</th><th>Bauteilart ${info('bauteilart')}</th><th class="zahl">U ${info('U')}<br>W/(m²·K)</th><th class="zahl">ΔU<sub>WB</sub> ${info('dUWB')}<br>W/(m²·K)</th><th class="zahl">U<sub>c</sub> ${info('Uc')}<br>W/(m²·K)</th><th>Quelle U ${info('quelle')}</th><th>Quelle ΔU<sub>WB</sub></th><th>Herkunft ${info('herkunft')}</th><th></th></tr>${zeilen}</table></div>`
+    ${S.bauteile.length ? `<div class="tabwrap"><table class="tab bt-tab"><tr><th>Name</th><th>Bauteilart ${info('bauteilart')}</th><th class="zahl">U ${info('U')}<br>W/(m²·K)</th><th class="zahl">ΔU<sub>WB</sub> ${info('dUWB')}<br>W/(m²·K)</th><th class="zahl">U<sub>c</sub> ${info('Uc')}<br>W/(m²·K)</th><th>Herkunft ${info('herkunft')}</th><th></th></tr>${zeilen}</table></div>`
       : '<p class="hinweis">Noch keine Bauteile.</p>'}
   </div>`;
 }

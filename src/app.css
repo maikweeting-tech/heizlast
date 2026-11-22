@@ -126,6 +126,30 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .blatt h2 .nr { color: var(--p-rot); margin-right: 6px; }
 .blatt h3.rw-raum { font-size: 9.5pt; color: var(--p-navy); margin: 12px 0 4px; break-after: avoid; }
 .aufbau-zeile td { border-top: 0; padding-top: 0; }
+/* Bauteilkatalog: zwei Zeilen je Bauteil, ohne Querscrollen */
+.bt-tab { width: 100%; }
+.bt-tab tr.bt-kopf td { border-bottom: 0; border-top: 2px solid var(--linie); padding-top: 10px; }
+.bt-tab tr.bt-unter td { padding-top: 2px; padding-bottom: 12px; }
+.bt-tab td.bt-name { width: 100%; }
+.bt-tab td.bt-name input { width: 100%; min-width: 140px; }
+.bt-tab select { min-width: 190px; }
+.bt-quellen { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-bottom: 6px; }
+.bt-quellen .feld { display: flex; flex-direction: column; gap: 3px; font-size: .85em; }
+.bt-quellen input.q { min-width: 0; width: 100%; }
+.bt-ungeprueft { margin-bottom: 6px; white-space: normal; }
+.bt-tab .aufbau-feld input.q { min-width: 0; }
+@media (max-width: 700px) {
+  .bt-quellen { grid-template-columns: 1fr; }
+  /* Handy: jedes Bauteil als Block, Spaltenköpfe als Beschriftung über dem Feld */
+  .bt-tab, .bt-tab tbody, .bt-tab tr { display: block; }
+  .bt-tab tr:first-child { display: none; }
+  .bt-tab tr.bt-kopf { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 8px; border-top: 2px solid var(--linie); padding-top: 8px; }
+  .bt-tab tr.bt-kopf td { display: block; border: 0; padding: 2px 0; }
+  .bt-tab tr.bt-kopf td.bt-name { flex: 1 1 85%; }
+  .bt-tab tr.bt-kopf td[data-l]::before { content: attr(data-l); display: block; font-size: .72rem; color: var(--muted, #5b6470); }
+  .bt-tab tr.bt-unter td { display: block; padding: 4px 0 12px; }
+  .bt-tab select { min-width: 0; max-width: 100%; }
+}
 .aufbau summary { cursor: pointer; font-size: .85em; color: var(--muted, #5b6470); }
 .aufbau table { margin: 6px 0 4px; }
 .aufbau-feld { display: flex; gap: 8px; align-items: center; font-size: .85em; }
