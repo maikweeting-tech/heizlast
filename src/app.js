@@ -268,7 +268,8 @@ function bauteilNachweiseHtml() {
     const glT = !gl ? '–' : gl.muFehlt ? `μ fehlt: ${esc(gl.muFehlt.join(', '))}`
       : !gl.tauwasser ? `kein Tauwasser<br>${ja(true, 'erfüllt')}`
       : `M<sub>c</sub> = ${v(gl.mc, 3)} ≤ ${v(gl.mcGrenze, 3)} kg/m²<br>M<sub>ev</sub> = ${v(gl.mev, 3)} ≥ M<sub>c</sub><br>${ja(gl.ok, gl.ok ? 'zulässig' : 'unzulässig')}`;
-    const rb = n.rb ? `<div class="aufbau-kurz">θ<sub>i</sub> ${v(n.rb.ti, 1)} °C / θ<sub>e</sub> ${v(n.rb.te, 1)} °C${m && m.din ? ` · DIN 4108-2:${esc(m.din)}` : ''}</div>` : '';
+    const AS = { luft: 'Außenluft', erdreich: 'Erdreich', innen: 'Innenraum/Keller' };
+    const rb = n.rb ? `<div class="aufbau-kurz">θ<sub>i</sub> ${v(n.rb.ti, 1)} °C / θ<sub>e</sub> ${v(n.rb.te, 1)} °C${m && m.din ? ` · DIN 4108-2:${esc(m.din)}` : ''}${n.rb.aussenseite ? ` · außen: ${esc(AS[n.rb.aussenseite] || n.rb.aussenseite)}${ok(n.rb.rse) ? ` (R<sub>se</sub> ${v(n.rb.rse, 2)})` : ''}` : ''}</div>` : '';
     return `<tr><td>${esc(b.name)}${rb}</td><td>${minT}</td><td>${gT}</td><td>${sT}</td><td>${glT}</td></tr>`;
   }).join('');
   return `<h3 class="rw-raum">Wärmeschutznachweise der Bauteile (aus Tab „2 Wärmeschutz“)</h3>
