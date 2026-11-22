@@ -1711,7 +1711,7 @@ function blattHtml() {
   ${S.gebaeude.geschosse.length ? `<div class="block schnitt-block"><p style="margin:4px 0 2px"><b>Gebäudeschnitt (schematisch, ohne Maßstab)</b> – rot: Stelle ohne benanntes Bauteil</p>${schnittSvg(S.gebaeude, S.bauteile)}</div>` : ''}
   <p><b>Regelwerk:</b> geltend DIN EN 12831-1:2017-09 (<span class="${normBadge(NORMSTAND[0])[0]}">${normBadge(NORMSTAND[0])[1]}</span>) mit DIN/TS 12831-1:2020-04 (<span class="${normBadge(NORMSTAND[1])[0]}">${normBadge(NORMSTAND[1])[1]}</span>). Gerechnet wird raumweise nach dem unten genannten Rechenweg. Standort: ${st ? esc(st.name) : '–'}.</p>
   <p><b>Rechenansatz:</b></p><ul>${varTxt}</ul>
-  <div class="block"><table><thead><tr><th>Randbedingung</th><th class="z">Wert</th><th>Einheit</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${rbHtml || '<tr><td colspan="5">–</td></tr>'}</tbody></table></div>
+  <div class="rb-tab"><table><thead><tr><th>Randbedingung</th><th class="z">Wert</th><th>Einheit</th><th>Quelle</th><th>Status</th></tr></thead><tbody>${rbHtml || '<tr><td colspan="5">–</td></tr>'}</tbody></table></div>
   <h2><span class="nr">2</span>Bauteilkatalog</h2>
   <table><thead><tr><th>Bauteil</th><th>Art</th><th class="z">U</th><th class="z">ΔU<sub>WB</sub></th><th class="z">U<sub>c</sub></th><th>Quelle</th></tr></thead><tbody>${btHtml || '<tr><td colspan="6">–</td></tr>'}</tbody></table>
   <p style="font-size:7.8pt;color:#5b6470">U, ΔU<sub>WB</sub>, U<sub>c</sub> in W/(m²·K); U<sub>c</sub> = U + ΔU<sub>WB</sub>.</p>
