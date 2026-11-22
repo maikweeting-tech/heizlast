@@ -998,7 +998,10 @@ function schnittSvg(G, bauteile, opt = {}) {
   gs.forEach((g, i) => {
     const fill = g.keller ? (g.beheizt ? '#f6dcc8' : '#e3e6ea') : (g.beheizt ? '#fde7d6' : '#eceff2');
     s += `<rect x="${xL}" y="${y(i)}" width="${xR - xL}" height="${h}" fill="${fill}"/>`;
-    s += `<text x="${(xL + xR) / 2}" y="${y(i) + h / 2 - 2}" text-anchor="middle" class="sn-g">${schnittEsc(g.name || '?')}</text>`;
+    // lange Namen auf die Kastenbreite stauchen (Arial fett 13 px ≈ 7,6 px je Zeichen)
+    const name = String(g.name || '?'), maxB = xR - xL - 14;
+    const fit = name.length * 7.6 > maxB ? ` textLength="${maxB}" lengthAdjust="spacingAndGlyphs"` : '';
+    s += `<text x="${(xL + xR) / 2}" y="${y(i) + h / 2 - 2}" text-anchor="middle" class="sn-g"${fit}>${schnittEsc(name)}</text>`;
     s += `<text x="${(xL + xR) / 2}" y="${y(i) + h / 2 + 14}" text-anchor="middle" class="sn-k">${g.beheizt ? 'beheizt' : 'unbeheizt'}${g.keller ? ', unter Gelände' : ''}</text>`;
     // Wände
     const wf = g.keller ? '#7a6a5a' : '#8a5a44';
