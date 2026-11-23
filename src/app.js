@@ -7,6 +7,7 @@ const BAUTEILARTEN = ['Außenwand', 'Fenster', 'Außentür', 'Dach', 'Oberste Ge
 const AUSRICHTUNG = ['', 'N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW', 'horizontal'];
 let S, tab = 'projekt', G = null, RE = null;
 const offen = new Set();
+let vzAuf = false;   // Raumauswahl im Tab „7 Ausdruck“ nach dem Anklicken offen lassen
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('zeigen');
@@ -30,7 +31,11 @@ function ergaenze(z) {
   z.normwerte = Object.assign(L.normwerte, z.normwerte || {});
   z.bauteile = z.bauteile || []; z.raeume = z.raeume || [];
   z.gebaeude = Object.assign({ geschosse: [], dach: '' }, z.gebaeude || {});
-  if (!z.entwurf) { z.entwurf = leererRaum(); z.entwurfVon = ''; }
+  // Altdateien: Formular-Entwurf als Raum übernehmen (Tab „5 Räume“ bearbeitet die Räume direkt)
+  if ('entwurf' in z || 'entwurfVon' in z) {
+    if (entwurfUebernehmen(z).angehaengt) setTimeout(() => toast('Ein nicht übernommener Raum aus der Datei wurde an die Raumliste angehängt.'), 0);
+  }
+  if (!z.raeume.some(r => r.id === z.raumAuswahl)) z.raumAuswahl = z.raeume.length ? z.raeume[0].id : '';
   return z;
 }
 let _sp;
@@ -78,8 +83,15 @@ function zeigeTab(t) {
   render();
   window.scrollTo(0, 0);
 }
+// gewählter Raum im Tab „5 Räume“ und sein Rechenergebnis
+const gewaehlt = () => S.raeume.find(r => r.id === S.raumAuswahl) || null;
+function rechne() {
+  G = rechneGebaeude(S);
+  const i = S.raeume.findIndex(r => r.id === S.raumAuswahl);
+  RE = i >= 0 ? G.raeume[i] : null;
+}
 function render() {
-  G = rechneGebaeude(S); RE = rechneRaum(S.entwurf, S);
+  rechne();
   if (tab === 'waerme') { rWaerme(); $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length; return; }
   const f = { projekt: rProjekt, bauteile: rBauteile, normwerte: rNormwerte, raum: rRaum, tabelle: rTabelle, vorzeige: rVorzeige }[tab];
   $('tab-' + tab).innerHTML = f();
@@ -98,7 +110,7 @@ function rProjekt() {
   <div class="karte"><h2>Titelblock</h2>
     <div class="reihe drei">${feld('Projekt', 'projekt.projekt', '', '', 't')}${feld('Bauvorhaben', 'projekt.bauvorhaben', '', '', 't')}${feld('Bearbeiter', 'projekt.bearbeiter', '', '', 't')}</div>
     <div class="reihe drei"><label class="feld">Datum<input type="date" data-b="projekt.datum" value="${esc(S.projekt.datum)}"></label>${feld('Positionsnummer', 'projekt.position', '', '', 't', 'placeholder="z. B. 1"')}<div></div></div>
-    <label class="feld">Kurzbeschreibung <span class="einh">(erscheint auf der Vorzeigeseite)</span><textarea data-b="projekt.beschreibung">${esc(S.projekt.beschreibung)}</textarea></label>
+    <label class="feld">Kurzbeschreibung <span class="einh">(erscheint im Ausdruck)</span><textarea data-b="projekt.beschreibung">${esc(S.projekt.beschreibung)}</textarea></label>
   </div>
   <div class="karte"><h2>Standort</h2>
     <label class="feld">Standort aus der Normwert-Tabelle ${info('standort')} ${sel('projekt.standortId', 'projekt.standortId', opts)}</label>
@@ -184,7 +196,7 @@ function gebaeudeKarte() {
       <td><button class="btn-icon" data-a="gs-weg" data-id="${g.id}" title="Geschoss entfernen">×</button></td></tr>`;
   }).join('');
   return `<div class="karte"><h2>Gebäudeschnitt ${info('schnitt')}</h2>
-    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 der Vorzeigeseite. Die Lage eines Bauteils kannst du im Tab „3 Bauteile“ ändern.</p>
+    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 des Ausdrucks. Die Lage eines Bauteils kannst du im Tab „3 Bauteile“ ändern.</p>
     ${gs.length ? `<div class="tabwrap"><table class="tab gs-tab">${z}</table></div>` : '<p class="hinweis klein">Noch keine Geschosse.</p>'}
     <div class="knoepfe" style="margin:8px 0 12px">
       <button class="btn btn-klein" data-a="gs-oben">+ Geschoss oben</button>
@@ -353,8 +365,35 @@ function rNormwerte() {
 }
 
 // ── 4 Raum eingeben ───────────────────────────────────────────────────────
+const raumListenName = r => [r.nr, r.name].map(x => String(x || '').trim()).filter(Boolean).join(' ') || '(ohne Namen)';
+function raumSummeHtml() {
+  const s = G.summe, g = G.geb, n = G.raeume.filter(R => R.vollstaendig).length;
+  return `<div>Σ Φ<sub>HL</sub> <b>${s ? W(s.phiHL) + ' W' : '–'}</b></div>
+    <div>Φ<sub>HL,Geb</sub> <b>${g ? W(g.phiHL / 1000, 2) + ' kW' : '–'}</b></div>
+    <div class="hinweis klein">${n} von ${S.raeume.length} Räumen vollständig</div>`;
+}
+// linke Spalte im Tab „5 Räume“; auf schmalen Bildschirmen statt der Liste eine Auswahl
+function raumListeHtml() {
+  const zeilen = S.raeume.map((r, i) => {
+    const R = G.raeume[i];
+    return `<button type="button" class="rl-zeile${r.id === S.raumAuswahl ? ' aktiv' : ''}" data-a="raum-waehlen" data-id="${r.id}" aria-current="${r.id === S.raumAuswahl}">
+      <span class="rl-punkt ${R.vollstaendig ? 'ok' : 'no'}" data-o="rp:${r.id}" title="${R.vollstaendig ? 'vollständig' : 'unvollständig'}"></span>
+      <span class="rl-name" data-o="rn:${r.id}">${esc(raumListenName(r))}</span><span class="rl-w" data-o="rl:${r.id}">${R.vollstaendig ? W(R.phiHL) : '–'}</span></button>`;
+  }).join('');
+  const auswahl = S.raeume.length ? `<label class="feld rl-auswahl">Raum ${sel('raumAuswahl', '', S.raeume.map(r => [r.id, raumListenName(r)]))}</label>` : '';
+  return `<aside class="karte raumliste"><h2>Räume <span class="einh">Φ<sub>HL</sub> in W</span></h2>
+    ${auswahl}<div class="rl-liste">${zeilen || '<p class="hinweis klein">Noch keine Räume.</p>'}</div>
+    <button class="btn btn-primaer rl-neu" data-a="raum-neu">+ Neuer Raum</button>
+    <div class="rl-summe" data-o="rl-summe">${raumSummeHtml()}</div></aside>`;
+}
 function rRaum() {
-  const r = S.entwurf, N = S.normwerte, e = 'entwurf';
+  const liste = raumListeHtml(), r = gewaehlt();
+  if (!r) return `<div class="raeume-layout">${liste}<div class="raum-form"><div class="karte"><h2>Kein Raum gewählt</h2>
+    <p class="hinweis">Mit „+ Neuer Raum“ einen Raum anlegen. Jede Eingabe wird sofort gespeichert – es gibt kein „Übernehmen“ mehr.</p></div></div></div>`;
+  return `<div class="raeume-layout">${liste}<div class="raum-form">${raumFormHtml(r)}</div></div>`;
+}
+function raumFormHtml(r) {
+  const N = S.normwerte, e = `raeume.#${r.id}`;
   const raOpts = [['', '— Raumart wählen —']].concat(N.raumarten.map(x => [x.id, `${x.name || '(ohne Namen)'} – θ_int ${nwText(x.tint, 1, '°C')}`]));
   const btOpts = [['', '— Bauteil —']].concat(S.bauteile.map(b => [b.id, `${b.name || '(ohne Namen)'} (U_c ${ok(num(b.U) + num(b.dUWB)) ? W(num(b.U) + num(b.dUWB), 3) : '?'})`]));
   const anOpts = [['', '—']].concat(Object.entries(ANGRENZUNG));
@@ -380,7 +419,8 @@ function rRaum() {
       <td><button class="btn-icon" data-a="fl-weg" data-id="${f.id}" title="Fläche entfernen">×</button></td></tr>`;
   }).join('');
   const lu = `${e}.lueftung`;
-  return `<div class="karte"><h2>${S.entwurfVon ? 'Raum bearbeiten' : 'Neuen Raum eingeben'}</h2>
+  return `<div class="karte"><div class="raum-kopf"><h2>Raum ${esc(raumListenName(r))}</h2>
+      <div class="knoepfe"><button class="btn btn-klein" data-a="raum-dup">Duplizieren</button><button class="btn btn-klein" data-a="raum-weg">Löschen</button></div></div>
     <div class="reihe vier">${feld('Nr.', e + '.nr', 'raum.nr', '', 't')}${feld('Raumname', e + '.name', 'raum.name', '', 't')}${feld('Geschoss', e + '.geschoss', '', '', 't')}
       <label class="feld">Raumart ${info('raumart')} → θ<sub>int</sub> ${info('theta_int')}${sel(e + '.raumartId', 'raum.raumartId', raOpts)}</label></div>
     <div class="radio"><label><input type="radio" name="amodus" data-b="${e}.amodus" data-r="1" value="LB" ${r.amodus !== 'A' && r.amodus !== 'TF' ? 'checked' : ''}> Fläche aus Länge × Breite</label>
@@ -422,14 +462,14 @@ function rRaum() {
     <p class="hinweis klein">Nur ansetzen, wenn eine Heizunterbrechung mit dem Bauherrn vereinbart ist.</p>
   </div>
   <div class="karte"><h2>Ergebnis des Raums</h2><div data-o="raumerg"></div>
-    <div class="knoepfe" style="margin-top:10px"><button class="btn btn-primaer" data-a="raum-ok">Raum übernehmen</button>
-    <button class="btn" data-a="raum-leeren">${S.entwurfVon ? 'Bearbeitung abbrechen' : 'Formular leeren'}</button></div>
+    <details class="auf rw-auf"><summary>Rechenweg anzeigen</summary><div data-o="raumrw"></div></details>
+    <p class="hinweis klein">Jede Eingabe wird sofort gespeichert.</p>
   </div>`;
 }
 function teilflaechenHtml(r) {
   const tf = r.teilflaechen || (r.teilflaechen = []);
   const z = tf.map((t, i) => {
-    const b = `entwurf.teilflaechen.#${t.id}`, pf = `raum.tf.${t.id}`;
+    const b = `raeume.#${r.id}.teilflaechen.#${t.id}`, pf = `raum.tf.${t.id}`;
     return `<tr><td>${i + 1}</td><td>${inp(b + '.bez', '', 'n', 'placeholder="z. B. Hauptteil"')}</td>
       <td>${inp(b + '.L', pf + '.L')}</td><td>${inp(b + '.B', pf + '.B')}</td>
       <td><label class="haken"><input type="checkbox" data-b="${b}.minus" ${t.minus ? 'checked' : ''}> abziehen</label></td>
@@ -453,24 +493,28 @@ function fehlHtml(R) {
 
 // ── 5 Raumtabelle ─────────────────────────────────────────────────────────
 function rTabelle() {
-  if (!S.raeume.length) return '<div class="karte"><h2>Raumtabelle</h2><p class="hinweis">Noch keine Räume. Im Tab „5 Raum eingeben“ einen Raum anlegen und „Raum übernehmen“ drücken.</p></div>';
+  if (!S.raeume.length) return '<div class="karte"><h2>Ergebnis</h2><p class="hinweis">Noch keine Räume. Im Tab „5 Räume“ mit „+ Neuer Raum“ einen Raum anlegen.</p></div>';
   const z = G.raeume.map((R, i) => {
     const r = S.raeume[i], o = offen.has(r.id), v = R.vollstaendig;
     return `<tr class="${v ? '' : 'unvoll'}"><td><button class="btn-icon" style="color:var(--text)" data-a="auf" data-id="${r.id}" aria-expanded="${o}" title="Rechenweg">${o ? '▾' : '▸'}</button></td>
       <td>${esc(r.nr)}</td><td>${esc(r.name)}</td><td class="zahl">${W(R.w.A, 2)}</td><td class="zahl">${W(R.w.V, 1)}</td><td class="zahl">${W(R.w.tint, 1)}</td>
       <td class="zahl">${W(R.phiT)}</td><td class="zahl">${W(R.phiV)}</td><td class="zahl">${v ? (R.rhGesetzt ? W(R.phiRH) : '–') : '–'}</td><td class="zahl"><b>${W(R.phiHL)}</b></td><td class="zahl">${W(R.phiSpez, 1)}</td>
       <td>${v ? '<span class="status ok">vollständig</span>' : '<span class="status no">unvollständig</span>'}</td>
-      <td class="no-print" style="white-space:nowrap"><button class="btn btn-klein" data-a="raum-edit" data-id="${r.id}">Bearbeiten</button>
-        <button class="btn btn-klein" data-a="raum-dup" data-id="${r.id}">Duplizieren</button><button class="btn-icon" data-a="raum-weg" data-id="${r.id}" title="Löschen">×</button></td></tr>
+      <td class="no-print" style="white-space:nowrap"><button class="btn btn-klein" data-a="raum-aendern" data-id="${r.id}">Ändern</button>
+        </td></tr>
       ${o ? `<tr><td></td><td colspan="12">${v ? rwTabelle(R, false) : ''}${raumErgebnisHtml(R)}</td></tr>` : ''}`;
   }).join('');
-  const s = G.summe;
-  return `<div class="karte"><h2>Raumtabelle</h2><div class="tabwrap"><table class="tab">
+  const s = G.summe, nV = G.raeume.filter(R => R.vollstaendig).length, nw = G.nachweis;
+  const kopf = `<div class="karte ergebnis-kopf"><h2>Ergebnis</h2><div class="ergebnis">
+      <div class="haupt">Gebäudeheizlast ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ${info('PhiGeb')}<b>${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</b></div>
+      <div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b>${nw ? `η = ${W(nw.eta, 3)} ${nw.erfuellt ? '<span class="status ok">erfüllt</span>' : '<span class="status no">nicht erfüllt</span>'}` : '–'}</b></div>
+      <div>Räume<b>${nV} von ${S.raeume.length} vollständig</b></div></div>
+    <p class="hinweis klein">Rechenweg eines Raums über ▸ aufklappen. „Ändern“ öffnet den Raum im Tab „5 Räume“. Druckfertig im Tab „7 Ausdruck“.</p></div>`;
+  return `${kopf}<div class="karte"><h2>Raumtabelle</h2><div class="tabwrap"><table class="tab">
     <tr><th></th><th>Nr.</th><th>Raum</th><th class="zahl">A ${info('A')}<br>m²</th><th class="zahl">V ${info('Vi')}<br>m³</th><th class="zahl">θ<sub>int</sub> ${info('theta_int')}<br>°C</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th class="zahl">Φ<sub>V</sub> ${info('PhiV')}<br>W</th><th class="zahl">Φ<sub>RH</sub> ${info('PhiRH')}<br>W</th><th class="zahl">Φ<sub>HL</sub> ${info('PhiHL')}<br>W</th><th class="zahl">φ ${info('phi')}<br>W/m²</th><th>Status</th><th></th></tr>
     ${z}
     <tr class="summe"><td></td><td></td><td>Summe</td><td class="zahl">${s ? W(s.A, 2) : '–'}</td><td class="zahl">${s ? W(s.V, 1) : '–'}</td><td></td><td class="zahl">${s ? W(s.phiT) : '–'}</td><td class="zahl">${s ? W(s.phiV) : '–'}</td><td class="zahl">${s ? W(s.phiRH) : '–'}</td><td class="zahl">${s ? W(s.phiHL) : '–'}</td><td class="zahl">${s ? W(s.phiSpez, 1) : '–'}</td><td colspan="2">${s ? '' : '<span class="status no">Räume unvollständig</span>'}</td></tr>
     </table></div>
-    <div class="ergebnis"><div class="haupt">Gebäudeheizlast ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ${info('PhiGeb')}<b>${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</b></div><div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b style="font-size:.9rem">${esc(nachweisText())}</b></div></div>
     ${gebHinweis()}</div>`;
 }
 // Herleitung der Gebäudeheizlast (Verfahren DIN/TS: Formblatt G 2 des wbs-Musterbeispiels)
@@ -568,11 +612,12 @@ function rVorzeige() {
   const gew = vorzeigeAuswahl();
   const liste = S.raeume.map(r => `<label class="haken"><input type="checkbox" data-a="vz-raum" data-id="${r.id}" ${gew.includes(r.id) ? 'checked' : ''}> ${esc(r.nr)} ${esc(r.name)}</label>`).join('');
   return `<div class="karte vorzeige-steuerung no-print">
-      <div class="feld">Rechenweg (Abschnitt 4) zeigen für <span class="einh">${gew.length} von ${S.raeume.length} Räumen</span></div>
-      <div class="vz-raeume">${liste || '<span class="klein">Noch keine Räume angelegt.</span>'}</div>
-      <div class="knoepfe" style="margin:8px 0 12px"><button class="btn btn-klein" data-a="vz-alle">Alle Räume</button><button class="btn btn-klein" data-a="vz-keine">Keinen Raum</button></div>
-      <div class="knoepfe" style="margin-bottom:12px"><button class="btn btn-primaer" data-a="drucken">Drucken / als PDF speichern</button><button class="btn" data-a="png">Als PNG speichern</button></div>
-    <p class="hinweis klein">Druck: A4 hoch, Ränder „Standard“, Kopf- und Fußzeilen des Browsers ausschalten (Seitenzahlen setzt die Seite selbst).</p></div>
+      <h2>Ausdruck</h2>
+      <div class="knoepfe" style="margin-bottom:10px"><button class="btn btn-primaer" data-a="drucken">Drucken / als PDF speichern</button><button class="btn" data-a="png">Als PNG speichern</button></div>
+      <p class="hinweis klein">Druck: A4 hoch, Ränder „Standard“, Kopf- und Fußzeilen des Browsers ausschalten (Seitenzahlen setzt die Seite selbst). Unten siehst du das Blatt so, wie es gedruckt wird.</p>
+      <details class="auf"${vzAuf ? ' open' : ''}><summary>Rechenweg (Abschnitt 4) für ${gew.length} von ${S.raeume.length} Räumen – Räume wählen</summary>
+        <div class="vz-raeume">${liste || '<span class="klein">Noch keine Räume angelegt.</span>'}</div>
+        <div class="knoepfe" style="margin:8px 0 4px"><button class="btn btn-klein" data-a="vz-alle">Alle Räume</button><button class="btn btn-klein" data-a="vz-keine">Keinen Raum</button></div></details></div>
   <div class="blattwrap"><article class="blatt" id="blatt">${blattHtml()}</article></div>`;
 }
 // Auswahl der Räume für den Rechenweg; alte Projekte mit einem Raum (vorzeigeRaum) werden übernommen
@@ -679,9 +724,8 @@ function druckstil() {
 function markiere() {
   const glob = new Set(), raum = new Set();
   G.raeume.forEach(R => R.fehlt.forEach(x => { if (!x.pfad.startsWith('raum.')) glob.add(x.pfad); }));
-  const benutzt = entwurfBenutzt();
-  // leeres Formular nicht rot färben – erst ab der ersten Eingabe
-  if (benutzt) RE.fehlt.forEach(x => (x.pfad.startsWith('raum.') ? raum : glob).add(x.pfad));
+  // neuer, noch leerer Raum nicht rot färben – erst ab der ersten Eingabe
+  if (RE && raumHatEingaben(gewaehlt())) RE.fehlt.forEach(x => (x.pfad.startsWith('raum.') ? raum : glob).add(x.pfad));
   if (G.fehltWE && S.raeume.length) glob.add('projekt.phiWE');
   document.querySelectorAll('[data-pf]').forEach(el => {
     const pf = el.dataset.pf;
@@ -690,13 +734,24 @@ function markiere() {
   if (tab === 'raum') aktualisiereRaum();
 }
 function aktualisiereRaum() {
-  const R = RE, w = R.w, o = k => document.querySelector(`[data-o="${k}"]`);
+  const o = k => document.querySelector(`[data-o="${k}"]`);
   const set = (k, h) => { const el = o(k); if (el) el.innerHTML = h; };
+  // Raumliste links live nachführen (Name, Φ_HL, Status, Summe)
+  S.raeume.forEach((r, i) => {
+    const Ri = G.raeume[i];
+    set('rn:' + r.id, esc(raumListenName(r)));
+    set('rl:' + r.id, Ri.vollstaendig ? W(Ri.phiHL) : '–');
+    const p = o('rp:' + r.id); if (p) p.className = 'rl-punkt ' + (Ri.vollstaendig ? 'ok' : 'no');
+  });
+  set('rl-summe', raumSummeHtml());
+  const R = RE;
+  if (!R) return;
+  const w = R.w;
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
   (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
   R.zeilen.forEach(z => {
     // A brutto aus L × H: Feld sperren und den gerechneten Wert zeigen
-    const ab = document.querySelector(`input[data-b="entwurf.flaechen.#${z.flId}.Ab"]`);
+    const ab = document.querySelector(`input[data-b="raeume.#${S.raumAuswahl}.flaechen.#${z.flId}.Ab"]`);
     if (ab && ab !== document.activeElement) {
       ab.readOnly = z.masz; ab.title = z.masz ? 'aus Länge × Höhe' : '';
       ab.value = z.masz ? (ok(z.Ab) ? W(z.Ab, 2) : '') : hole(ab.dataset.b);
@@ -707,9 +762,10 @@ function aktualisiereRaum() {
     ? `A<sub>env</sub> = ${W(w.Aenv, 2)} · θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · q<sub>V,env</sub> = ${W(w.qenv, 2)} · q<sub>V,min</sub> = ${W(w.Vmin, 2)} · q<sub>V,env/min</sub> = ${W(w.qenvmin, 2)}`
     : `θ<sub>su</sub> = ${w.Vsu > 0 ? W(w.tsu, 2) : '–'} · V̇<sub>inf</sub> = ${W(w.Vinf, 2)}${R.verfahren === 'din2003' ? ` · V̇<sub>min</sub> = ${W(w.Vmin, 2)} · V̇<sub>therm</sub> = ${W(w.Vtherm, 2)}` : ''}`);
   set('raumerg', raumErgebnisHtml(R));
+  set('raumrw', R.vollstaendig ? rwTabelle(R, false) : '<p class="hinweis klein">Rechenweg erscheint, sobald der Raum vollständig ist.</p>');
 }
 function nachEingabe(el) {
-  G = rechneGebaeude(S); RE = rechneRaum(S.entwurf, S);
+  rechne();
   if (el && el.dataset.r) { render(); return; }
   markiere();
   if (tab === 'bauteile') S.bauteile.forEach(b => { const x = document.querySelector(`[data-o="uc:${b.id}"]`); if (x) x.innerHTML = ucText(b); });
@@ -722,19 +778,13 @@ function nachEingabe(el) {
 }
 
 // ── Aktionen ──────────────────────────────────────────────────────────────
-const tief = o => JSON.parse(JSON.stringify(o));
-function entwurfBenutzt() {
-  const r = S.entwurf, l = r.lueftung;
-  return !!(r.nr || r.name || r.geschoss || r.raumartId || r.flaechen.length || (r.teilflaechen || []).length || r.hi || r.L || r.B || r.A || r.phiRH || r.rhModus || r.fRH || r.innenliegend ||
-    l.Vsu || l.thetaSu || l.eta || l.Vex || l.n50 || l.eId || l.epsId || l.Vtr || l.thetaTr || l.nminRaum);
-}
 const AKTION = {
-  'vz-raum'(d) { const g = vorzeigeAuswahl(); S.vorzeigeRaeume = g.includes(d.id) ? g.filter(x => x !== d.id) : g.concat(d.id); },
-  'vz-alle'() { S.vorzeigeRaeume = S.raeume.map(r => r.id); },
-  'vz-keine'() { S.vorzeigeRaeume = []; },
+  'vz-raum'(d) { vzAuf = true; const g = vorzeigeAuswahl(); S.vorzeigeRaeume = g.includes(d.id) ? g.filter(x => x !== d.id) : g.concat(d.id); },
+  'vz-alle'() { vzAuf = true; S.vorzeigeRaeume = S.raeume.map(r => r.id); },
+  'vz-keine'() { vzAuf = true; S.vorzeigeRaeume = []; },
   'bt-neu'() { S.bauteile.push({ id: neueId('bt'), name: '', art: '', U: '', dUWB: '', quelle: '', dUWBQuelle: '', herkunft: 'manuell' }); },
   'bt-weg'(d) {
-    const benutzt = S.raeume.concat([S.entwurf]).filter(r => r.flaechen.some(f => f.bauteilId === d.id));
+    const benutzt = S.raeume.filter(r => r.flaechen.some(f => f.bauteilId === d.id));
     const b = S.bauteile.find(x => x.id === d.id);
     if (!confirm(`Bauteil „${b.name || '?'}“ löschen?${benutzt.length ? `\nEs wird in ${benutzt.length} Raum/Räumen verwendet – diese werden unvollständig.` : ''}`)) return false;
     S.bauteile = S.bauteile.filter(x => x.id !== d.id);
@@ -745,29 +795,25 @@ const AKTION = {
     S.normwerte[d.art].push(L[d.art]());
   },
   'nw-weg'(d) { if (!confirm('Zeile löschen? Räume, die sie verwenden, werden unvollständig.')) return false; S.normwerte[d.art] = S.normwerte[d.art].filter(x => x.id !== d.id); },
-  'fl-neu'() { S.entwurf.flaechen.push(leereFlaeche()); },
-  'tf-neu'() { (S.entwurf.teilflaechen || (S.entwurf.teilflaechen = [])).push(leereTeilflaeche()); },
-  'tf-weg'(d) { S.entwurf.teilflaechen = S.entwurf.teilflaechen.filter(t => t.id !== d.id); },
-  'fl-weg'(d) { S.entwurf.flaechen = S.entwurf.flaechen.filter(f => f.id !== d.id); },
-  'raum-ok'() {
-    const r = tief(S.entwurf), i = S.raeume.findIndex(x => x.id === S.entwurfVon);
-    if (i >= 0) S.raeume[i] = r; else { r.id = neueId('r'); S.raeume.push(r); }
-    const R = rechneRaum(r, S);
-    S.entwurf = leererRaum(); S.entwurfVon = '';
-    toast(`Raum ${r.nr || ''} ${i >= 0 ? 'aktualisiert' : 'übernommen'}${R.vollstaendig ? '' : ' – unvollständig'}.`);
-    speichern(); zeigeTab('tabelle'); return false;
-  },
-  'raum-leeren'() { if (entwurfBenutzt() && !confirm('Eingaben im Formular verwerfen?')) return false; S.entwurf = leererRaum(); S.entwurfVon = ''; },
-  'raum-edit'(d) {
-    if (entwurfBenutzt() && !confirm('Das Formular enthält Eingaben. Verwerfen und diesen Raum laden?')) return false;
-    S.entwurf = tief(S.raeume.find(r => r.id === d.id)); S.entwurfVon = d.id; speichern(); zeigeTab('raum'); return false;
-  },
+  'fl-neu'() { gewaehlt().flaechen.push(leereFlaeche()); },
+  'tf-neu'() { const r = gewaehlt(); (r.teilflaechen || (r.teilflaechen = [])).push(leereTeilflaeche()); },
+  'tf-weg'(d) { const r = gewaehlt(); r.teilflaechen = r.teilflaechen.filter(t => t.id !== d.id); },
+  'fl-weg'(d) { const r = gewaehlt(); r.flaechen = r.flaechen.filter(f => f.id !== d.id); },
+  'raum-waehlen'(d) { S.raumAuswahl = d.id; },
+  'raum-neu'() { S.raumAuswahl = neuerRaum(S); if (tab !== 'raum') { speichern(); zeigeTab('raum'); return false; } },
+  // aus Tab „6 Ergebnis“: Raum im Tab „5 Räume“ öffnen
+  'raum-aendern'(d) { S.raumAuswahl = d.id; speichern(); zeigeTab('raum'); return false; },
   'raum-dup'(d) {
-    const i = S.raeume.findIndex(r => r.id === d.id), r = tief(S.raeume[i]);
-    r.id = neueId('r'); r.nr = (r.nr || '') + ' (Kopie)'; r.flaechen.forEach(f => { f.id = neueId('f'); }); (r.teilflaechen || []).forEach(t => { t.id = neueId('tf'); });
-    S.raeume.splice(i + 1, 0, r); toast('Raum dupliziert.');
+    const id = raumDuplizieren(S, d.id || S.raumAuswahl);
+    if (id && tab === 'raum') S.raumAuswahl = id;
+    toast('Raum dupliziert.');
   },
-  'raum-weg'(d) { const r = S.raeume.find(x => x.id === d.id); if (!confirm(`Raum ${r.nr} „${r.name}“ löschen?`)) return false; S.raeume = S.raeume.filter(x => x.id !== d.id); if (S.entwurfVon === d.id) S.entwurfVon = ''; },
+  'raum-weg'(d) {
+    const id = d.id || S.raumAuswahl, r = S.raeume.find(x => x.id === id);
+    if (!r || !confirm(`Raum ${r.nr || ''} „${r.name || ''}“ löschen?`)) return false;
+    const n = raumLoeschen(S, id);
+    if (S.raumAuswahl === id) S.raumAuswahl = n;
+  },
   'auf'(d) { offen.has(d.id) ? offen.delete(d.id) : offen.add(d.id); },
   'ws-import'() { wsDialog(); return false; },
   'zu-waerme'() { zeigeTab('waerme'); return false; },

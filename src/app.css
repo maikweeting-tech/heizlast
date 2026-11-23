@@ -236,3 +236,31 @@ dialog::backdrop { background: rgba(0,0,0,.45); }
 .ws-kopf { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
 .ws-kopf p { margin: 0; }
 #ws-rahmen { display: block; width: 100%; min-height: 600px; border: 1px solid var(--linie); border-radius: var(--radius); background: var(--bg); }
+
+/* Tab „5 Räume“: Liste links, gewählter Raum rechts */
+.raeume-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 14px; align-items: start; }
+.raumliste { position: sticky; top: 8px; padding: 12px; max-height: calc(100vh - 24px); display: flex; flex-direction: column; }
+.raumliste h2 { margin-bottom: 8px; }
+.rl-liste { overflow-y: auto; flex: 1 1 auto; margin: 0 -4px 8px; }
+.rl-zeile { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: .9rem; text-align: left; cursor: pointer; }
+.rl-zeile:hover { background: var(--navy-hell); }
+.rl-zeile.aktiv { background: var(--navy-hell); font-weight: 600; box-shadow: inset 3px 0 0 var(--akzent); }
+.rl-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rl-w { font-variant-numeric: tabular-nums; }
+.rl-punkt { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.rl-punkt.ok { background: var(--gruen); }
+.rl-punkt.no { background: var(--rot); }
+.rl-neu { width: 100%; }
+.rl-summe { border-top: 1px solid var(--linie); margin-top: 10px; padding-top: 8px; font-size: .9rem; display: grid; gap: 2px; }
+.rl-summe b { float: right; }
+label.feld.rl-auswahl { display: none; }
+.raum-kopf { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.raum-kopf h2 { margin: 0; }
+.rw-auf { margin-top: 10px; }
+.ergebnis-kopf .ergebnis { margin-top: 0; }
+@media (max-width: 760px) {
+  .raeume-layout { grid-template-columns: minmax(0, 1fr); }
+  .raumliste { position: static; max-height: none; }
+  .rl-liste { display: none; }
+  label.feld.rl-auswahl { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+}

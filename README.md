@@ -26,7 +26,7 @@ Das allgemeine Lüftungsverfahren der DIN EN 12831-1:2017 (Gl. 18–31, Tab. B.8
 |---|---|
 | `src/calc.js` | Rechenkern: Formeln, Varianten, Normstand, Einheitenkontrolle |
 | `src/begriffe.js` | Erklärungen für die i-Symbole (Begriff, Formelzeichen, Einheit) – ohne Normwerte |
-| `src/app.js`, `src/app.css`, `src/index.html` | Oberfläche, Vorzeigeseite, Druck, PNG- und xlsx-Export |
+| `src/app.js`, `src/app.css`, `src/index.html` | Oberfläche (Tabs: Projekt, Wärmeschutz, Bauteile, Normwerte, Räume, Ergebnis, Ausdruck), Druck, PNG- und xlsx-Export |
 | `vendor/` | SheetJS 0.18.5 (mini) und html2canvas 1.4.1, werden eingebettet |
 | `build.js` | erzeugt `index.html` aus `src/` und `vendor/` |
 | `tests.js` | Prüfungen (Excel-Testfall 18,29 kW, unvollständige Eingaben, Import, Einheiten) |
