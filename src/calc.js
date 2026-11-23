@@ -189,6 +189,47 @@ function leererRaum() {
     rhModus: '', phiRH: '', fRH: '', fRHQuelle: ''
   };
 }
+// ── Räume direkt bearbeiten (Tab „5 Räume“) ──────────────────────────────
+// true, sobald im Raum etwas eingetragen ist (IDs und Standardmodi zählen nicht)
+function raumHatEingaben(r) {
+  if (!r) return false;
+  const voll = v => String(v == null ? '' : v).trim() !== '';
+  if (['nr', 'name', 'geschoss', 'raumartId', 'L', 'B', 'A', 'hi', 'phiRH', 'fRH', 'fRHQuelle'].some(k => voll(r[k]))) return true;
+  if ((r.flaechen || []).length || (r.teilflaechen || []).length || r.innenliegend) return true;
+  const l = r.lueftung || {};
+  return ['Vsu', 'thetaSu', 'eta', 'Vex', 'n50', 'eId', 'epsId', 'Vtr', 'thetaTr', 'nminRaum', 'nminQuelle'].some(k => voll(l[k]));
+}
+// Altdateien: Formular-Entwurf (S.entwurf) in die Raumliste übernehmen, danach entfernen
+function entwurfUebernehmen(S) {
+  const e = S.entwurf, von = S.entwurfVon;
+  delete S.entwurf; delete S.entwurfVon;
+  if (!raumHatEingaben(e)) return { S, angehaengt: false };
+  S.raeume = S.raeume || [];
+  const i = von ? S.raeume.findIndex(r => r.id === von) : -1;
+  if (i >= 0) { S.raeume[i] = { ...e, id: von }; return { S, angehaengt: false }; }
+  S.raeume.push({ ...e, id: neueId('r') });
+  return { S, angehaengt: true };
+}
+function neuerRaum(S) { const r = leererRaum(); S.raeume.push(r); return r.id; }
+function raumDuplizieren(S, id) {
+  const i = S.raeume.findIndex(r => r.id === id);
+  if (i < 0) return '';
+  const k = JSON.parse(JSON.stringify(S.raeume[i]));
+  k.id = neueId('r'); k.name = (k.name || '') + ' (Kopie)';
+  (k.flaechen || []).forEach(f => { f.id = neueId('f'); });
+  (k.teilflaechen || []).forEach(t => { t.id = neueId('tf'); });
+  S.raeume.splice(i + 1, 0, k);
+  return k.id;
+}
+// gibt die ID des Raums zurück, der danach gewählt sein soll (Nachfolger, sonst Vorgänger, sonst '')
+function raumLoeschen(S, id) {
+  const i = S.raeume.findIndex(r => r.id === id);
+  if (i < 0) return '';
+  S.raeume.splice(i, 1);
+  if (Array.isArray(S.vorzeigeRaeume)) S.vorzeigeRaeume = S.vorzeigeRaeume.filter(x => x !== id);
+  const n = S.raeume[i] || S.raeume[i - 1];
+  return n ? n.id : '';
+}
 function leereTeilflaeche() { return { id: neueId('tf'), bez: '', L: '', B: '', minus: false }; }
 function leereFlaeche() {
   return { id: neueId('f'), bauteilId: '', ausrichtung: '', fL: '', fH: '', Ab: '', Az: '', an: '', thetaX: '', Uequiv: '', UequivQuelle: '', buQuelle: '' };
@@ -518,5 +559,5 @@ function leseBauteilDatei(obj) {
 
 if (typeof module !== 'undefined') module.exports = {
   NORMSTAND, VERFAHREN, HINWEIS_2017, QUELLE_LAASCH, QUELLE_WBS, formeln, ANGRENZUNG, num, fmt, fmtV, ok, einheitenPruefung, einheitProdukt, EINH,
-  leeresProjekt, leererRaum, leereFlaeche, leereTeilflaeche, neueId, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY, rhModusVon
+  leeresProjekt, leererRaum, leereFlaeche, leereTeilflaeche, neueId, raumHatEingaben, entwurfUebernehmen, neuerRaum, raumDuplizieren, raumLoeschen, rechneRaum, rechneGebaeude, bauteilAusWaermeschutz, leseBauteilDatei, FH21_BAUTEILE_KEY, rhModusVon
 };

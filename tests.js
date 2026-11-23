@@ -208,6 +208,35 @@ pruefe('ohne Haken und ohne Flächen → Fehlliste', C.rechneRaum(ri, P9i).fehlt
 pruefe('Zahl mit Komma', C.num('1,45'), 1.45);
 pruefe('keine Zahl', Number.isNaN(C.num('1,4x')), true);
 
+// ── Räume direkt bearbeiten: Altdatei-Entwurf, Anlegen, Duplizieren, Löschen ──
+{
+  const mitRaeumen = n => { const P = C.leeresProjekt(); for (let i = 0; i < n; i++) { const r = C.leererRaum(); r.nr = String(i + 1); r.name = 'R' + (i + 1); r.flaechen.push(C.leereFlaeche()); P.raeume.push(r); } return P; };
+  // gefüllter Entwurf ohne entwurfVon → angehängt
+  let P = mitRaeumen(2); P.entwurf = C.leererRaum(); P.entwurf.name = 'halb fertig'; P.entwurfVon = '';
+  let e = C.entwurfUebernehmen(P);
+  pruefe('Altdatei: gefüllter Entwurf wird angehängt', [P.raeume.length, e.angehaengt, P.raeume[2].name, 'entwurf' in P, 'entwurfVon' in P].join(), '3,true,halb fertig,false,false');
+  // leerer Entwurf → kein Phantomraum
+  P = mitRaeumen(2); P.entwurf = C.leererRaum(); P.entwurfVon = '';
+  e = C.entwurfUebernehmen(P);
+  pruefe('Altdatei: leerer Entwurf → kein Phantomraum', [P.raeume.length, e.angehaengt, 'entwurf' in P].join(), '2,false,false');
+  // Entwurf eines bestehenden Raums → ersetzt, nicht doppelt
+  P = mitRaeumen(3); P.entwurf = JSON.parse(JSON.stringify(P.raeume[1])); P.entwurf.name = 'geändert'; P.entwurfVon = P.raeume[1].id;
+  e = C.entwurfUebernehmen(P);
+  pruefe('Altdatei: Entwurf eines Raums ersetzt diesen', [P.raeume.length, P.raeume[1].name, e.angehaengt].join(), '3,geändert,false');
+  pruefe('raumHatEingaben: leer / mit Fläche', [C.raumHatEingaben(C.leererRaum()), C.raumHatEingaben({ ...C.leererRaum(), flaechen: [C.leereFlaeche()] })].join(), 'false,true');
+  // neuer Raum
+  P = mitRaeumen(1); const idN = C.neuerRaum(P);
+  pruefe('neuerRaum: angehängt, leer, unvollständig', [P.raeume.length, P.raeume[1].id === idN, P.raeume[1].nr, C.rechneRaum(P.raeume[1], P).vollstaendig].join(), '2,true,,false');
+  // duplizieren
+  P = mitRaeumen(3); const alt = P.raeume[0], idD = C.raumDuplizieren(P, alt.id), d = P.raeume[1];
+  pruefe('raumDuplizieren: neue IDs, direkt dahinter, „(Kopie)“', [idD !== alt.id, d.id === idD, d.flaechen[0].id !== alt.flaechen[0].id, d.name, P.raeume.length].join(), 'true,true,true,R1 (Kopie),4');
+  // löschen
+  P = mitRaeumen(3); const ids = P.raeume.map(r => r.id); P.vorzeigeRaeume = [ids[1]];
+  pruefe('raumLoeschen Mitte → Nachfolger, aus Vorzeige entfernt', [C.raumLoeschen(P, ids[1]) === ids[2], P.raeume.length, P.vorzeigeRaeume.length].join(), 'true,2,0');
+  pruefe('raumLoeschen letzter → Vorgänger', C.raumLoeschen(P, ids[2]) === ids[0], true);
+  pruefe('raumLoeschen einziger → leer', C.raumLoeschen(P, ids[0]), '');
+}
+
 // ── Gebaute Datei: Syntax aller Skripte, auch der eingebetteten Wärmeschutz-App ──
 {
   const fs = require('fs'), vm = require('vm'), path = require('path');
