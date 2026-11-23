@@ -419,7 +419,7 @@ function raumFormHtml(r) {
       <td><button class="btn-icon" data-a="fl-weg" data-id="${f.id}" title="Fläche entfernen">×</button></td></tr>`;
   }).join('');
   const lu = `${e}.lueftung`;
-  return `<div class="karte"><div class="raum-kopf"><h2>Raum ${esc(raumListenName(r))}</h2>
+  return `<div class="karte"><div class="raum-kopf"><h2>Raum <span data-o="rkopf">${esc(raumListenName(r))}</span></h2>
       <div class="knoepfe"><button class="btn btn-klein" data-a="raum-dup">Duplizieren</button><button class="btn btn-klein" data-a="raum-weg">Löschen</button></div></div>
     <div class="reihe vier">${feld('Nr.', e + '.nr', 'raum.nr', '', 't')}${feld('Raumname', e + '.name', 'raum.name', '', 't')}${feld('Geschoss', e + '.geschoss', '', '', 't')}
       <label class="feld">Raumart ${info('raumart')} → θ<sub>int</sub> ${info('theta_int')}${sel(e + '.raumartId', 'raum.raumartId', raOpts)}</label></div>
@@ -507,7 +507,7 @@ function rTabelle() {
   const s = G.summe, nV = G.raeume.filter(R => R.vollstaendig).length, nw = G.nachweis;
   const kopf = `<div class="karte ergebnis-kopf"><h2>Ergebnis</h2><div class="ergebnis">
       <div class="haupt">Gebäudeheizlast ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ${info('PhiGeb')}<b>${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</b></div>
-      <div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b>${nw ? `η = ${W(nw.eta, 3)} ${nw.erfuellt ? '<span class="status ok">erfüllt</span>' : '<span class="status no">nicht erfüllt</span>'}` : '–'}</b></div>
+      <div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b>${nw ? `η = ${W(nw.eta, 3)} ${nw.erfuellt ? '<span class="status ok">erfüllt</span>' : '<span class="status no">nicht erfüllt</span>'}` : `<span style="font-size:.85rem;font-weight:400">${esc(nachweisText())}</span>`}</b></div>
       <div>Räume<b>${nV} von ${S.raeume.length} vollständig</b></div></div>
     <p class="hinweis klein">Rechenweg eines Raums über ▸ aufklappen. „Ändern“ öffnet den Raum im Tab „5 Räume“. Druckfertig im Tab „7 Ausdruck“.</p></div>`;
   return `${kopf}<div class="karte"><h2>Raumtabelle</h2><div class="tabwrap"><table class="tab">
@@ -723,7 +723,8 @@ function druckstil() {
 // ── Live-Aktualisierung ohne Neuaufbau ────────────────────────────────────
 function markiere() {
   const glob = new Set(), raum = new Set();
-  G.raeume.forEach(R => R.fehlt.forEach(x => { if (!x.pfad.startsWith('raum.')) glob.add(x.pfad); }));
+  // leere, neu angelegte Räume färben keine Projekt- oder Normwertfelder rot
+  G.raeume.forEach((R, i) => { if (raumHatEingaben(S.raeume[i])) R.fehlt.forEach(x => { if (!x.pfad.startsWith('raum.')) glob.add(x.pfad); }); });
   // neuer, noch leerer Raum nicht rot färben – erst ab der ersten Eingabe
   if (RE && raumHatEingaben(gewaehlt())) RE.fehlt.forEach(x => (x.pfad.startsWith('raum.') ? raum : glob).add(x.pfad));
   if (G.fehltWE && S.raeume.length) glob.add('projekt.phiWE');
@@ -746,6 +747,8 @@ function aktualisiereRaum() {
   set('rl-summe', raumSummeHtml());
   const R = RE;
   if (!R) return;
+  set('rkopf', esc(raumListenName(gewaehlt())));
+  const opt = document.querySelector(`.rl-auswahl option[value="${S.raumAuswahl}"]`); if (opt) opt.textContent = raumListenName(gewaehlt());
   const w = R.w;
   set('AV', `A = ${W(w.A, 2)} · V<sub>i</sub> = ${W(w.V, 2)}`);
   (w.teile || []).forEach(t => set('tf:' + t.id, (t.minus ? '− ' : '') + W(t.A, 2)));
