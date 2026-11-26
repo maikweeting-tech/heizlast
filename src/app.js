@@ -7,7 +7,7 @@ const BAUTEILARTEN = ['Außenwand', 'Fenster', 'Außentür', 'Dach', 'Oberste Ge
 const AUSRICHTUNG = ['', 'N', 'NO', 'O', 'SO', 'S', 'SW', 'W', 'NW', 'horizontal'];
 let S, tab = 'projekt', G = null, RE = null;
 const offen = new Set();
-let vzAuf = false;   // Raumauswahl im Tab „7 Ausdruck“ nach dem Anklicken offen lassen
+let vzAuf = false;   // Raumauswahl im Tab „8 Ausdruck“ nach dem Anklicken offen lassen
 
 function toast(msg) {
   const t = $('toast'); t.textContent = msg; t.classList.add('zeigen');
@@ -31,7 +31,7 @@ function ergaenze(z) {
   z.normwerte = Object.assign(L.normwerte, z.normwerte || {});
   z.bauteile = z.bauteile || []; z.raeume = z.raeume || [];
   z.gebaeude = Object.assign({ geschosse: [], dach: '' }, z.gebaeude || {});
-  // Altdateien: Formular-Entwurf als Raum übernehmen (Tab „5 Räume“ bearbeitet die Räume direkt)
+  // Altdateien: Formular-Entwurf als Raum übernehmen (Tab „6 Räume“ bearbeitet die Räume direkt)
   if ('entwurf' in z || 'entwurfVon' in z) {
     if (entwurfUebernehmen(z).angehaengt) setTimeout(() => toast('Ein nicht übernommener Raum aus der Datei wurde an die Raumliste angehängt.'), 0);
   }
@@ -83,7 +83,7 @@ function zeigeTab(t) {
   render();
   window.scrollTo(0, 0);
 }
-// gewählter Raum im Tab „5 Räume“ und sein Rechenergebnis
+// gewählter Raum im Tab „6 Räume“ und sein Rechenergebnis
 const gewaehlt = () => S.raeume.find(r => r.id === S.raumAuswahl) || null;
 function rechne() {
   G = rechneGebaeude(S);
@@ -93,7 +93,7 @@ function rechne() {
 function render() {
   rechne();
   if (tab === 'waerme') { rWaerme(); $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length; return; }
-  const f = { projekt: rProjekt, bauteile: rBauteile, normwerte: rNormwerte, raum: rRaum, tabelle: rTabelle, vorzeige: rVorzeige }[tab];
+  const f = { projekt: rProjekt, glaser: rGlaser, bauteile: rBauteile, normwerte: rNormwerte, raum: rRaum, tabelle: rTabelle, vorzeige: rVorzeige }[tab];
   $('tab-' + tab).innerHTML = f();
   $('z-bauteile').textContent = S.bauteile.length; $('z-raeume').textContent = S.raeume.length;
   markiere();
@@ -117,7 +117,7 @@ function rProjekt() {
     ${st ? `<div class="tabwrap"><table class="tab"><tr><th>Größe</th><th class="zahl">Wert</th><th>Quelle</th><th>Status</th></tr>
       <tr><td>Norm-Außentemperatur θ<sub>e</sub> ${info('theta_e')}</td><td class="zahl">${nwText(st.te, 1, '°C')}</td><td>${esc(st.te.quelle)}</td><td>${badge(st.te)}</td></tr>
       <tr><td>Jahresmittel der Außentemperatur θ<sub>m,e</sub> ${info('theta_me')}</td><td class="zahl">${nwText(st.tme, 1, '°C')}</td><td>${esc(st.tme.quelle)}</td><td>${badge(st.tme)}</td></tr></table></div>`
-      : '<p class="hinweis">Standorte legst du im Tab „4 Normwerte“ an.</p>'}
+      : '<p class="hinweis">Standorte legst du im Tab „5 Normwerte“ an.</p>'}
   </div>
   ${gebaeudeKarte()}
   <div class="karte"><h2>Wärmeerzeuger (für den Nachweis)</h2>
@@ -196,7 +196,7 @@ function gebaeudeKarte() {
       <td><button class="btn-icon" data-a="gs-weg" data-id="${g.id}" title="Geschoss entfernen">×</button></td></tr>`;
   }).join('');
   return `<div class="karte"><h2>Gebäudeschnitt ${info('schnitt')}</h2>
-    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 des Ausdrucks. Die Lage eines Bauteils kannst du im Tab „3 Bauteile“ ändern.</p>
+    <p class="hinweis">Geschosse von oben nach unten. Die Skizze zeigt, welche Bauteile aus dem Katalog an welcher Stelle liegen – rot = noch kein Bauteil benannt. Erscheint auf Seite 1 des Ausdrucks. Die Lage eines Bauteils kannst du im Tab „4 Bauteile“ ändern.</p>
     ${gs.length ? `<div class="tabwrap"><table class="tab gs-tab">${z}</table></div>` : '<p class="hinweis klein">Noch keine Geschosse.</p>'}
     <div class="knoepfe" style="margin:8px 0 12px">
       <button class="btn btn-klein" data-a="gs-oben">+ Geschoss oben</button>
@@ -231,6 +231,8 @@ window.addEventListener('message', e => {
   const f = $('ws-rahmen');
   if (!f || e.source !== f.contentWindow || !e.data || typeof e.data !== 'object') return;
   if (e.data.typ === 'fh21.toast') toast(String(e.data.text || ''));
+  // Wärmeschutz meldet die Lage des Glaser-Diagramms (Rahmen wächst mit, daher scrollt die Heizlast-Seite)
+  if (e.data.typ === 'fh21.scroll' && Number.isFinite(e.data.y)) window.scrollTo({ top: f.getBoundingClientRect().top + window.scrollY + e.data.y - 140 });
   if (e.data.typ === 'fh21.bauteil') {
     uebernimmBauteile([e.data.bauteil], true);
     const k = document.querySelector('#tab-waerme .ws-kopf .klein'); if (k) k.textContent = `${S.bauteile.length} Bauteil(e) im Katalog`;
@@ -290,6 +292,41 @@ function aufbauTabelle(b, sch) {
     <table class="tab klein"><tr><th>Nr.</th><th>Schicht</th><th class="zahl">d in cm</th><th class="zahl">λ in W/(m·K)</th><th class="zahl">R in m²K/W</th><th>Quelle λ</th></tr>${z}</table></details>`;
 }
 // Wärmeschutznachweise der Bauteile (aus der Wärmeschutz-App übergeben) für die Vorzeigeseite
+// ── 3 Glaser: Tauwassernachweis je Bauteil (Ergebnis aus der Wärmeschutz-Übergabe) ──
+function rGlaser() {
+  const ws = S.bauteile.filter(b => !(b.art === 'Fenster' || b.art === 'Außentür'));
+  const v = (x, d) => (ok(num(x)) ? W(num(x), d) : '–');
+  const karten = ws.map(b => {
+    const gl = b.nachweis && b.nachweis.glaser;
+    const knopf = b.wsZustand ? `<button class="btn btn-klein" data-a="ws-glaser" data-id="${b.id}">Glaser-Diagramm im Tab „2 Wärmeschutz“ öffnen</button>` : '';
+    if (!gl) return `<div class="karte"><h2>${esc(b.name || '(ohne Namen)')}</h2>
+      <p class="hinweis">${b.herkunft === 'waermeschutz' ? 'Kein Glaser-Ergebnis übergeben – Bauteil im Tab „2 Wärmeschutz“ berechnen und neu übergeben.' : 'Manuell angelegtes Bauteil ohne Schichtaufbau – kein Glaser-Nachweis.'}</p>${knopf}</div>`;
+    const status = gl.muFehlt ? `<span class="status no">μ fehlt: ${esc(gl.muFehlt.join(', '))}</span>`
+      : !gl.tauwasser ? '<span class="status ok">kein Tauwasser</span>'
+      : `<span class="status ${gl.ok ? 'ok' : 'no'}">Tauwasser ${gl.ok ? 'zulässig' : 'NICHT zulässig'}</span>`;
+    // Schichten mit μ und s_d = μ · d aus den gespeicherten Eingaben ([typ, baustoff, name, d in cm, λ, quelle, μ])
+    const sch = ((b.wsZustand && b.wsZustand.s) || []).map(s => ({ name: s[2] || s[1] || '?', d: num(s[3]), mu: num(s[6]) }));
+    let sdSum = 0;
+    const zeilen = sch.map((s, i) => {
+      const sd = ok(s.d) && ok(s.mu) ? s.mu * s.d / 100 : NaN;
+      if (ok(sd)) sdSum += sd;
+      return `<tr><td>${i + 1}</td><td>${esc(s.name)}</td><td class="zahl">${ok(s.d) ? W(s.d, 1) : '–'}</td><td class="zahl">${ok(s.mu) ? W(s.mu, 0) : '–'}</td><td class="zahl">${ok(sd) ? W(sd, 2) : '–'}</td></tr>`;
+    }).join('');
+    const werte = gl.tauwasser && !gl.muFehlt
+      ? `<div>M<sub>c</sub> Tauwasser ${info('Mc')}<b>${v(gl.mc, 3)} kg/m²</b></div><div>M<sub>ev</sub> Verdunstung ${info('Mev')}<b>${v(gl.mev, 3)} kg/m²</b></div><div>Grenzwert M<sub>c</sub><b>≤ ${v(gl.mcGrenze, 2)} kg/m²</b></div>`
+      : '';
+    return `<div class="karte"><div class="raum-kopf"><h2>${esc(b.name)}</h2>${status}</div>
+      <div class="ergebnis">${werte}<div>Tauwasserebenen<b>${gl.ebenen != null ? esc(gl.ebenen) : '–'}</b></div></div>
+      ${zeilen ? `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Schicht (innen → außen)</th><th class="zahl">d<br>cm</th><th class="zahl">μ (Eingabe)<br>–</th><th class="zahl">s<sub>d</sub> = μ · d<br>m</th></tr>${zeilen}
+        <tr class="summe"><td></td><td>Σ s<sub>d</sub></td><td></td><td></td><td class="zahl">${W(sdSum, 2)}</td></tr></table></div>
+      <p class="hinweis klein">Glaser rechnet bei Baustoffen mit μ-Bereich (z. B. Stahlbeton 80/130) mit dem jeweils ungünstigeren Wert; die Tabelle zeigt den eingegebenen μ. Die maßgebenden s<sub>d</sub>-Werte stehen im Glaser-Diagramm.</p>` : ''}
+      <div class="knoepfe" style="margin-top:8px">${knopf}</div></div>`;
+  }).join('');
+  return `<div class="karte"><h2>Tauwasser im Bauteil – Glaser-Verfahren (DIN 4108-3)</h2>
+    <p class="hinweis">Ergebnisse der Bauteile, die aus dem Tab „2 Wärmeschutz“ übergeben wurden. Randbedingungen nach DIN 4108-3 (Tauperiode innen 20 °C / 50 %, außen −5 °C / 80 %, je 90 Tage) – Rechnung, Temperatur- und Dampfdruckverlauf sowie das Glaser-Diagramm stehen im Tab „2 Wärmeschutz“.
+    Zulässig, wenn M<sub>c</sub> ≤ M<sub>ev</sub> und M<sub>c</sub> ≤ 1,0 kg/m² (0,5 kg/m² an nicht kapillar wasseraufnahmefähigen Schichten).</p>
+    ${ws.length ? '' : '<p class="hinweis">Noch keine Bauteile. Im Tab „2 Wärmeschutz“ berechnen und an die Heizlast-App übergeben.</p>'}</div>${karten}`;
+}
 function bauteilNachweiseHtml() {
   const ws = S.bauteile.filter(b => b.herkunft === 'waermeschutz' && !(b.art === 'Fenster' || b.art === 'Außentür'));
   if (!ws.length) return '';
@@ -372,7 +409,7 @@ function raumSummeHtml() {
     <div>Φ<sub>HL,Geb</sub> <b>${g ? W(g.phiHL / 1000, 2) + ' kW' : '–'}</b></div>
     <div class="hinweis klein">${n} von ${S.raeume.length} Räumen vollständig</div>`;
 }
-// linke Spalte im Tab „5 Räume“; auf schmalen Bildschirmen statt der Liste eine Auswahl
+// linke Spalte im Tab „6 Räume“; auf schmalen Bildschirmen statt der Liste eine Auswahl
 function raumListeHtml() {
   const zeilen = S.raeume.map((r, i) => {
     const R = G.raeume[i];
@@ -438,7 +475,7 @@ function raumFormHtml(r) {
     ${r.innenliegend && !r.flaechen.length ? '<p class="hinweis">Φ<sub>T</sub> = 0 W. Grenzt der Raum an Nachbarräume mit anderer Temperatur, an Erdreich oder an Unbeheiztes, den Haken entfernen und diese Flächen eintragen.</p>' : `<div class="tabwrap"><table class="tab"><tr><th>#</th><th>Bauteil ${info('Uc')}</th><th>Ausrichtung ${info('ausrichtung')}</th><th class="zahl">L × H ${info('LH')}<br>m</th><th class="zahl">A brutto ${info('Ab')}<br>m²</th><th class="zahl">Abzug Öffn. ${info('Az')}<br>m²</th><th class="zahl">A netto ${info('An')}<br>m²</th><th>angrenzend an ${info('angrenzend')}</th><th>θ<sub>u</sub> ${info('theta_u')} / θ<sub>j</sub> ${info('theta_j')} in °C · b<sub>u</sub> ${info('buTab')}${din ? ' · U<sub>equiv</sub> ' + info('Uequiv') : ''}</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th></th></tr>
     ${fl || '<tr><td colspan="11" class="hinweis" data-pf="raum.flaechen">Noch keine Fläche.</td></tr>'}</table></div>
     <button class="btn btn-klein" style="margin-top:8px" data-a="fl-neu">+ Hüllfläche</button>`}
-    ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „3 Bauteile“ anlegen.</p>'}
+    ${S.bauteile.length ? '' : '<p class="hinweis klein">Zuerst Bauteile im Tab „2 Wärmeschutz“ berechnen oder im Tab „4 Bauteile“ anlegen.</p>'}
   </div>
   <div class="karte"><h2>Lüftung</h2>
     <div class="reihe drei">${feld('Zuluftvolumenstrom V̇<sub>su</sub> ' + info('Vsu'), lu + '.Vsu', 'raum.lu.Vsu', 'm³/h', 'z')}
@@ -493,7 +530,7 @@ function fehlHtml(R) {
 
 // ── 5 Raumtabelle ─────────────────────────────────────────────────────────
 function rTabelle() {
-  if (!S.raeume.length) return '<div class="karte"><h2>Ergebnis</h2><p class="hinweis">Noch keine Räume. Im Tab „5 Räume“ mit „+ Neuer Raum“ einen Raum anlegen.</p></div>';
+  if (!S.raeume.length) return '<div class="karte"><h2>Ergebnis</h2><p class="hinweis">Noch keine Räume. Im Tab „6 Räume“ mit „+ Neuer Raum“ einen Raum anlegen.</p></div>';
   const z = G.raeume.map((R, i) => {
     const r = S.raeume[i], o = offen.has(r.id), v = R.vollstaendig;
     return `<tr class="${v ? '' : 'unvoll'}"><td><button class="btn-icon" style="color:var(--text)" data-a="auf" data-id="${r.id}" aria-expanded="${o}" title="Rechenweg">${o ? '▾' : '▸'}</button></td>
@@ -509,7 +546,7 @@ function rTabelle() {
       <div class="haupt">Gebäudeheizlast ${G.geb && G.geb.ts ? 'Φ<sub>HL,Geb</sub>' : 'Σ Φ<sub>HL</sub>'} ${info('PhiGeb')}<b>${G.geb ? W(G.geb.phiHL / 1000, 2) + ' kW' : '–'}</b></div>
       <div>Nachweis Wärmeerzeuger ${info('eta_nw')}<b>${nw ? `η = ${W(nw.eta, 3)} ${nw.erfuellt ? '<span class="status ok">erfüllt</span>' : '<span class="status no">nicht erfüllt</span>'}` : `<span style="font-size:.85rem;font-weight:400">${esc(nachweisText())}</span>`}</b></div>
       <div>Räume<b>${nV} von ${S.raeume.length} vollständig</b></div></div>
-    <p class="hinweis klein">Rechenweg eines Raums über ▸ aufklappen. „Ändern“ öffnet den Raum im Tab „5 Räume“. Druckfertig im Tab „7 Ausdruck“.</p></div>`;
+    <p class="hinweis klein">Rechenweg eines Raums über ▸ aufklappen. „Ändern“ öffnet den Raum im Tab „6 Räume“. Druckfertig im Tab „8 Ausdruck“.</p></div>`;
   return `${kopf}<div class="karte"><h2>Raumtabelle</h2><div class="tabwrap"><table class="tab">
     <tr><th></th><th>Nr.</th><th>Raum</th><th class="zahl">A ${info('A')}<br>m²</th><th class="zahl">V ${info('Vi')}<br>m³</th><th class="zahl">θ<sub>int</sub> ${info('theta_int')}<br>°C</th><th class="zahl">Φ<sub>T</sub> ${info('PhiT')}<br>W</th><th class="zahl">Φ<sub>V</sub> ${info('PhiV')}<br>W</th><th class="zahl">Φ<sub>RH</sub> ${info('PhiRH')}<br>W</th><th class="zahl">Φ<sub>HL</sub> ${info('PhiHL')}<br>W</th><th class="zahl">φ ${info('phi')}<br>W/m²</th><th>Status</th><th></th></tr>
     ${z}
@@ -804,7 +841,7 @@ const AKTION = {
   'fl-weg'(d) { const r = gewaehlt(); r.flaechen = r.flaechen.filter(f => f.id !== d.id); },
   'raum-waehlen'(d) { S.raumAuswahl = d.id; },
   'raum-neu'() { S.raumAuswahl = neuerRaum(S); if (tab !== 'raum') { speichern(); zeigeTab('raum'); return false; } },
-  // aus Tab „6 Ergebnis“: Raum im Tab „5 Räume“ öffnen
+  // aus Tab „7 Ergebnis“: Raum im Tab „6 Räume“ öffnen
   'raum-aendern'(d) { S.raumAuswahl = d.id; speichern(); zeigeTab('raum'); return false; },
   'raum-dup'(d) {
     const id = raumDuplizieren(S, d.id || S.raumAuswahl);
@@ -832,11 +869,12 @@ const AKTION = {
       if (!da.has(n.toLowerCase())) S.gebaeude.geschosse.push({ id: neueId('gs'), name: n, beheizt: true, keller: /^(kg|ug|keller)/i.test(n) });
     });
   },
-  'ws-bearbeiten'(d) {
+  'ws-glaser'(d) { return AKTION['ws-bearbeiten'](d, 'glaser'); },
+  'ws-bearbeiten'(d, ziel) {
     const b = S.bauteile.find(x => x.id === d.id);
     if (!b || !b.wsZustand) return false;
     zeigeTab('waerme');
-    const f = $('ws-rahmen'), nachricht = { typ: 'fh21.bauteil-laden', name: b.name, zustand: b.wsZustand };
+    const f = $('ws-rahmen'), nachricht = { typ: 'fh21.bauteil-laden', name: b.name, zustand: b.wsZustand, ziel: ziel || '' };
     const senden = () => f.contentWindow.postMessage(nachricht, '*');
     if (f.dataset.geladen) senden(); else f.addEventListener('load', senden, { once: true });
     return false;
@@ -867,7 +905,7 @@ function uebernimmBauteile(liste, ausRahmen = false) {
   speichern();
   if (!ausRahmen) render(); else { $('z-bauteile').textContent = S.bauteile.length; }
   const was = neu + akt === 1 ? `„${liste[0].name}“ ${neu ? 'in den Katalog übernommen' : 'im Katalog aktualisiert'}` : `${neu} Bauteil(e) übernommen${akt ? `, ${akt} aktualisiert` : ''}`;
-  toast(`${was}. ΔU_WB im Tab „3 Bauteile“ eintragen${ungeprueft ? ' und Schichtwerte prüfen' : ''}.`);
+  toast(`${was}. ΔU_WB im Tab „4 Bauteile“ eintragen${ungeprueft ? ' und Schichtwerte prüfen' : ''}.`);
 }
 function wsDialog() {
   let liste = [];

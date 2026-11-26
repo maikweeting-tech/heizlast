@@ -189,7 +189,7 @@ function leererRaum() {
     rhModus: '', phiRH: '', fRH: '', fRHQuelle: ''
   };
 }
-// ── Räume direkt bearbeiten (Tab „5 Räume“) ──────────────────────────────
+// ── Räume direkt bearbeiten (Tab „6 Räume“) ──────────────────────────────
 // true, sobald im Raum etwas eingetragen ist (IDs und Standardmodi zählen nicht)
 function raumHatEingaben(r) {
   if (!r) return false;
